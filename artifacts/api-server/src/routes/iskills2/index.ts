@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { pool } from "./db";
-import { signToken, requireAuth, type AuthRequest } from "./auth";
+import { signToken } from "./auth";
 import { SHARED_USER_ID } from "./db";
 
 const router = Router();
