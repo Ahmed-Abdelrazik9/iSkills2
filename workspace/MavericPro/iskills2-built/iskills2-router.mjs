@@ -34539,6 +34539,43 @@ function rowToSkill(r) {
     updatedAt: r.updated_at
   };
 }
+async function searchWeb(query) {
+  try {
+    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+    const response = await fetch(searchUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`DuckDuckGo returned ${response.status}`);
+    }
+    const html = await response.text();
+    const results = [];
+    const linkRegex = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+    const snippetRegex = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
+    let match;
+    while ((match = linkRegex.exec(html)) !== null && results.length < 8) {
+      const url = match[1];
+      const title = match[2].replace(/<[^>]+>/g, "").trim();
+      if (title && url) {
+        results.push({ title, url, snippet: "" });
+      }
+    }
+    let idx = 0;
+    while ((match = snippetRegex.exec(html)) !== null && idx < results.length) {
+      const snippet = match[1].replace(/<[^>]+>/g, "").trim();
+      if (snippet) {
+        results[idx].snippet = snippet;
+      }
+      idx++;
+    }
+    return results;
+  } catch (err) {
+    console.error("[iSkills2] web search failed:", err.message);
+    return [];
+  }
+}
 function needsWebSearch(message) {
   const m = (message || "").toLowerCase();
   const freshnessSignals = [
@@ -34726,15 +34763,20 @@ router.post("/skills/match", async (req, res) => {
     if (best.score >= threshold) {
       const skill = rowToSkill(best.skill);
       const searchSignal = skill.isearch ? needsWebSearch(message) : { needsSearch: false, searchQuery: "" };
+      let searchResults = [];
+      if (searchSignal.needsSearch) {
+        searchResults = await searchWeb(searchSignal.searchQuery);
+      }
       res.json({
         matched: true,
         confidence: Math.min(best.score * 2, 1),
         skill,
         reason: `Matched "${best.skill.name}" with ${Math.round(best.score * 100)}% keyword overlap`,
-        ...searchSignal
+        ...searchSignal,
+        searchResults
       });
     } else {
-      res.json({ matched: false, confidence: best.score, skill: null, reason: "No skill matched the message", needsSearch: false, searchQuery: "" });
+      res.json({ matched: false, confidence: best.score, skill: null, reason: "No skill matched the message", needsSearch: false, searchQuery: "", searchResults: [] });
     }
   } catch (err) {
     res.status(500).json({ error: err.message });
