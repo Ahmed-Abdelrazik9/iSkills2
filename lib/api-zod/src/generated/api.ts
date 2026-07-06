@@ -168,7 +168,7 @@ export const MatchSkillResponse = zod.object({
   "lastUsedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
-}).optional(),
+}).nullish(),
   "reason": zod.string().optional(),
   "needsSearch": zod.boolean().optional(),
   "searchQuery": zod.string().optional(),

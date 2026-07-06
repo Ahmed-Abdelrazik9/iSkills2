@@ -17,7 +17,7 @@ import type { ToolResult } from './toolResult';
 export interface MatchResult {
   matched: boolean;
   confidence: number;
-  skill?: Skill;
+  skill?: Skill | null;
   reason?: string;
   needsSearch?: boolean;
   searchQuery?: string;

@@ -127,7 +127,7 @@ function isPrivateIp(ip: string): boolean {
     const parsed = ipaddr.parse(ip);
     if (parsed.kind() === "ipv4") {
       const range = parsed.range();
-      return range !== "unicast" && range !== "broadcast";
+      return range !== "unicast";
     }
     const range = parsed.range();
     if (range === "loopback" || range === "linkLocal" || range === "uniqueLocal" || range === "multicast" || range === "unspecified") return true;
@@ -189,13 +189,12 @@ async function fetchUrl(url: string): Promise<{ title: string; url: string; snip
 
     const validatedIp = ips[0];
     const isV6 = validatedIp.includes(":");
-    const connectHost = isV6 ? `[${validatedIp}]` : validatedIp;
 
     const res = await new Promise<http.IncomingMessage>((resolve, reject) => {
       const client = protocol === "https:" ? https : http;
       const req = client.request(
         {
-          hostname: connectHost,
+          hostname: validatedIp,
           port,
           path,
           method: "GET",

@@ -535,7 +535,9 @@ components:
         confidence:
           type: number
         skill:
-          $ref: "#/components/schemas/Skill"
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Skill"
         reason:
           type: string
         needsSearch:

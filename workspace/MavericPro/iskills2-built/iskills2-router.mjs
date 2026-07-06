@@ -45573,7 +45573,7 @@ function isPrivateIp(ip) {
     const parsed = import_ipaddr.default.parse(ip);
     if (parsed.kind() === "ipv4") {
       const range2 = parsed.range();
-      return range2 !== "unicast" && range2 !== "broadcast";
+      return range2 !== "unicast";
     }
     const range = parsed.range();
     if (range === "loopback" || range === "linkLocal" || range === "uniqueLocal" || range === "multicast" || range === "unspecified") return true;
@@ -45629,12 +45629,11 @@ async function fetchUrl(url) {
     if (!ips.length || ips.some(isPrivateIp)) return null;
     const validatedIp = ips[0];
     const isV6 = validatedIp.includes(":");
-    const connectHost = isV6 ? `[${validatedIp}]` : validatedIp;
     const res = await new Promise((resolve, reject) => {
       const client = protocol === "https:" ? https : http;
       const req = client.request(
         {
-          hostname: connectHost,
+          hostname: validatedIp,
           port,
           path: path2,
           method: "GET",

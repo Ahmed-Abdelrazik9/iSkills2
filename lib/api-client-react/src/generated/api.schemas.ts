@@ -135,7 +135,7 @@ export interface ToolResult {
 export interface MatchResult {
   matched: boolean;
   confidence: number;
-  skill?: Skill;
+  skill?: Skill | null;
   reason?: string;
   needsSearch?: boolean;
   searchQuery?: string;
