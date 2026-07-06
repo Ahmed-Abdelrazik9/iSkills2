@@ -697,7 +697,7 @@ function SkillFormView({
         {testResult && (
           <div className="p-5 space-y-4">
             <div className="flex items-center gap-3">
-              {testResult.wouldTrigger ? (
+              {testResult.matched ? (
                 <div className="h-9 w-9 rounded-full bg-green-500/10 flex items-center justify-center">
                   <CheckCircle2 className="h-5 w-5 text-green-500" />
                 </div>
@@ -708,30 +708,27 @@ function SkillFormView({
               )}
               <div>
                 <p className="font-semibold text-slate-800">
-                  {testResult.wouldTrigger ? 'Match Found' : 'No Match'}
+                  {testResult.matched ? 'Match Found' : 'No Match'}
                 </p>
                 <p className="text-xs text-slate-500">
                   Confidence:{' '}
-                  <span className="font-mono">{testResult.triggerScore?.toFixed(2) ?? 'N/A'}</span>
+                  <span className="font-mono">{testResult.confidence?.toFixed(2) ?? 'N/A'}</span>
                 </p>
               </div>
             </div>
-            {testResult.wouldTrigger && (
+            {testResult.matched && testResult.skill && (
               <>
                 <div>
-                  <FieldLabel>Injected Prompt</FieldLabel>
+                  <FieldLabel>Matched Skill</FieldLabel>
+                  <p className="text-sm font-medium text-slate-800">{testResult.skill.name}</p>
+                  <p className="text-xs text-slate-500">{testResult.reason}</p>
+                </div>
+                <div>
+                  <FieldLabel>Instructions</FieldLabel>
                   <div className="mt-1 bg-[#F5F1EB] p-4 rounded-xl text-xs font-mono whitespace-pre-wrap text-slate-600 max-h-40 overflow-y-auto border border-[#DDD8CF]">
-                    {testResult.injectedPrompt}
+                    {testResult.skill.instructions}
                   </div>
                 </div>
-                {testResult.sampleResponse && (
-                  <div>
-                    <FieldLabel>Preview Response</FieldLabel>
-                    <div className="mt-1 bg-white border border-[#C4A882]/20 p-4 rounded-xl text-sm whitespace-pre-wrap text-slate-700 max-h-40 overflow-y-auto">
-                      {testResult.sampleResponse}
-                    </div>
-                  </div>
-                )}
               </>
             )}
           </div>
