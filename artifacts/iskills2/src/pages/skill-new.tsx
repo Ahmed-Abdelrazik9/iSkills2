@@ -150,7 +150,7 @@ export default function SkillNew() {
                     <FormItem>
                       <FormLabel>Priority (0-100)</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} />
+                        <Input type="text" inputMode="numeric" {...field} />
                       </FormControl>
                       <FormDescription>Higher priority skills are evaluated first.</FormDescription>
                       <FormMessage />
