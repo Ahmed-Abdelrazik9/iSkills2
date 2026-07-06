@@ -21038,7 +21038,7 @@ var require_application = __commonJS({
     var finalhandler = require_finalhandler();
     var debug = require_src()("express:application");
     var View = require_view();
-    var http = __require("node:http");
+    var http2 = __require("node:http");
     var methods = require_utils3().methods;
     var compileETag = require_utils3().compileETag;
     var compileQueryParser = require_utils3().compileQueryParser;
@@ -21271,7 +21271,7 @@ var require_application = __commonJS({
       tryRender(view, renderOptions, done);
     };
     app.listen = function listen() {
-      var server = http.createServer(this);
+      var server = http2.createServer(this);
       var args = slice.call(arguments);
       if (typeof args[args.length - 1] === "function") {
         var done = args[args.length - 1] = once(args[args.length - 1]);
@@ -22046,12 +22046,12 @@ var require_request = __commonJS({
     var accepts = require_accepts();
     var isIP = __require("node:net").isIP;
     var typeis = require_type_is();
-    var http = __require("node:http");
+    var http2 = __require("node:http");
     var fresh = require_fresh();
     var parseRange = require_range_parser();
     var parse = require_parseurl();
     var proxyaddr = require_proxy_addr();
-    var req = Object.create(http.IncomingMessage.prototype);
+    var req = Object.create(http2.IncomingMessage.prototype);
     module.exports = req;
     req.get = req.header = function header(name) {
       if (!name) {
@@ -23145,7 +23145,7 @@ var require_response = __commonJS({
     var deprecate = require_depd()("express");
     var encodeUrl = require_encodeurl();
     var escapeHtml = require_escape_html();
-    var http = __require("node:http");
+    var http2 = __require("node:http");
     var onFinished = require_on_finished();
     var mime = require_mime_types();
     var path2 = __require("node:path");
@@ -23161,7 +23161,7 @@ var require_response = __commonJS({
     var resolve = path2.resolve;
     var vary = require_vary();
     var { Buffer: Buffer2 } = __require("node:buffer");
-    var res = Object.create(http.ServerResponse.prototype);
+    var res = Object.create(http2.ServerResponse.prototype);
     module.exports = res;
     res.status = function status(code) {
       if (!Number.isInteger(code)) {
@@ -45387,6 +45387,8 @@ function isUndiciDispatcherVersionMismatchError(error) {
 // src/routes/iskills2/index.ts
 var import_ipaddr = __toESM(require_ipaddr2(), 1);
 import dns from "node:dns";
+import http from "node:http";
+import https from "node:https";
 import { promisify } from "node:util";
 
 // ../../node_modules/.pnpm/pg@8.22.0/node_modules/pg/esm/index.mjs
@@ -45614,16 +45616,49 @@ async function extractUrls(text) {
 async function fetchUrl(url) {
   if (!await isSafeUrl(url)) return null;
   try {
-    const res = await fetch(url, {
-      redirect: "manual",
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-      }
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    const protocol = parsed.protocol;
+    const port = parsed.port || (protocol === "https:" ? 443 : 80);
+    const path2 = parsed.pathname + parsed.search;
+    const [v4, v6] = await Promise.allSettled([dnsResolve4(hostname), dnsResolve6(hostname)]);
+    const ips = [
+      ...v4.status === "fulfilled" ? v4.value : [],
+      ...v6.status === "fulfilled" ? v6.value : []
+    ];
+    if (!ips.length || ips.some(isPrivateIp)) return null;
+    const validatedIp = ips[0];
+    const isV6 = validatedIp.includes(":");
+    const connectHost = isV6 ? `[${validatedIp}]` : validatedIp;
+    const res = await new Promise((resolve, reject) => {
+      const client = protocol === "https:" ? https : http;
+      const req = client.request(
+        {
+          hostname: connectHost,
+          port,
+          path: path2,
+          method: "GET",
+          servername: hostname,
+          headers: {
+            Host: hostname,
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+          }
+        },
+        (response) => resolve(response)
+      );
+      req.on("error", reject);
+      req.end();
     });
-    if (!res.ok || res.status >= 300) return null;
-    const html = await res.text();
+    if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) return null;
+    const html = await new Promise((resolve, reject) => {
+      let data = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => data += chunk);
+      res.on("end", () => resolve(data));
+      res.on("error", reject);
+    });
     const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : url;
     const text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400);
@@ -45855,7 +45890,7 @@ router.post("/skills/match", async (req, res) => {
     const llmRows = rows.filter((r) => (r.match_mode || "keyword") === "llm");
     if (llmRows.length && hasLlmKey) {
       const llm = await llmMatch(message, llmRows);
-      if (llm && llm.skillId) {
+      if (llm && llm.skillId && llm.confidence >= 0.5) {
         const matched = llmRows.find((r) => r.id === llm.skillId);
         if (matched) {
           best = { skill: matched, confidence: llm.confidence, reason: llm.reason };

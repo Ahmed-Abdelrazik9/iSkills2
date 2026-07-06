@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import OpenAI from "openai";
 import ipaddr from "ipaddr.js";
 import dns from "node:dns";
+import http from "node:http";
+import https from "node:https";
 import { promisify } from "node:util";
 import { pool } from "./db";
 import { signToken } from "./auth";
@@ -172,16 +174,55 @@ async function extractUrls(text: string): Promise<string[]> {
 async function fetchUrl(url: string): Promise<{ title: string; url: string; snippet: string } | null> {
   if (!(await isSafeUrl(url))) return null;
   try {
-    const res = await fetch(url, {
-      redirect: "manual",
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-      },
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    const protocol = parsed.protocol;
+    const port = parsed.port || (protocol === "https:" ? 443 : 80);
+    const path = parsed.pathname + parsed.search;
+
+    const [v4, v6] = await Promise.allSettled([dnsResolve4(hostname), dnsResolve6(hostname)]);
+    const ips = [
+      ...(v4.status === "fulfilled" ? v4.value : []),
+      ...(v6.status === "fulfilled" ? v6.value : []),
+    ];
+    if (!ips.length || ips.some(isPrivateIp)) return null;
+
+    const validatedIp = ips[0];
+    const isV6 = validatedIp.includes(":");
+    const connectHost = isV6 ? `[${validatedIp}]` : validatedIp;
+
+    const res = await new Promise<http.IncomingMessage>((resolve, reject) => {
+      const client = protocol === "https:" ? https : http;
+      const req = client.request(
+        {
+          hostname: connectHost,
+          port,
+          path,
+          method: "GET",
+          servername: hostname,
+          headers: {
+            Host: hostname,
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          },
+        },
+        (response) => resolve(response),
+      );
+      req.on("error", reject);
+      req.end();
     });
-    if (!res.ok || res.status >= 300) return null;
-    const html = await res.text();
+
+    if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) return null;
+
+    const html = await new Promise<string>((resolve, reject) => {
+      let data = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => resolve(data));
+      res.on("error", reject);
+    });
+
     const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : url;
     const text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -417,7 +458,7 @@ router.post("/skills/match", async (req, res) => {
     const llmRows = rows.filter((r) => (r.match_mode || "keyword") === "llm");
     if (llmRows.length && hasLlmKey) {
       const llm = await llmMatch(message, llmRows);
-      if (llm && llm.skillId) {
+      if (llm && llm.skillId && llm.confidence >= 0.5) {
         const matched = llmRows.find((r) => r.id === llm.skillId);
         if (matched) {
           best = { skill: matched, confidence: llm.confidence, reason: llm.reason };
