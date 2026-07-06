@@ -36,6 +36,7 @@ const skillSchema = z.object({
   description: z.string().min(1, "Description is required"),
   instructions: z.string().min(1, "Instructions are required"),
   enabled: z.boolean(),
+  isearch: z.boolean(),
   priority: z.coerce.number().min(0).max(100),
   triggerExamples: z.array(z.object({ value: z.string().min(1, "Example cannot be empty") }))
 })
@@ -61,6 +62,7 @@ export default function SkillEdit() {
       description: "",
       instructions: "",
       enabled: true,
+      isearch: false,
       priority: 50,
       triggerExamples: [{ value: "" }]
     }
@@ -80,6 +82,7 @@ export default function SkillEdit() {
         description: skill.description,
         instructions: skill.instructions,
         enabled: skill.enabled,
+        isearch: skill.isearch,
         priority: skill.priority,
         triggerExamples: skill.triggerExamples.length > 0 
           ? skill.triggerExamples.map(v => ({ value: v }))
@@ -324,6 +327,27 @@ export default function SkillEdit() {
                 />
               </div>
 
+              <div className="flex items-center justify-between bg-card border border-border p-6 rounded-3xl shadow-sm">
+                <FormField
+                  control={form.control}
+                  name="isearch"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between w-full space-y-0">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Enable iSearch</FormLabel>
+                        <FormDescription>When active, this skill will automatically request web search for current information.</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <div className="flex justify-end gap-4 pb-12">
                 <Button type="submit" size="lg" disabled={updateSkill.isPending || !form.formState.isDirty} className="shadow-md">
                   {updateSkill.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
@@ -389,6 +413,12 @@ export default function SkillEdit() {
                     <p className="text-sm font-medium text-slate-800">{testResult.skill.name}</p>
                     <p className="text-xs text-muted-foreground">{testResult.reason}</p>
                   </div>
+                  {testResult.needsSearch && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                      <p className="text-sm font-medium text-blue-800">iSearch triggered</p>
+                      <p className="text-xs text-blue-600 font-mono mt-1">{testResult.searchQuery}</p>
+                    </div>
+                  )}
                   <div>
                     <label className="text-xs uppercase tracking-widest font-black text-accent block mb-2">Instructions</label>
                     <div className="bg-muted p-4 rounded-xl text-sm font-mono whitespace-pre-wrap text-muted-foreground max-h-64 overflow-y-auto border border-border">
