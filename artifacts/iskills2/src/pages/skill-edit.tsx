@@ -229,7 +229,7 @@ export default function SkillEdit() {
                       <FormItem>
                         <FormLabel>Priority (0-100)</FormLabel>
                         <FormControl>
-                          <Input type="number" {...field} />
+                          <Input type="text" inputMode="numeric" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
