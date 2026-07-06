@@ -1,6 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import OpenAI from "openai";
+import ipaddr from "ipaddr.js";
 import dns from "node:dns";
 import { promisify } from "node:util";
 import { pool } from "./db";
@@ -118,32 +119,24 @@ async function searchWeb(query: string): Promise<{ title: string; url: string; s
   }
 }
 
-function isPrivateIpV4(ip: string): boolean {
-  const parts = ip.split(".").map(Number);
-  if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255)) return true;
-  const [a, b] = parts;
-  if (a === 10) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  if (a === 127) return true;
-  if (a === 169 && b === 254) return true;
-  if (a === 100 && b >= 64 && b <= 127) return true;
-  return false;
-}
-
-function isPrivateIpV6(ip: string): boolean {
-  const full = ip.toLowerCase().trim();
-  if (!full.includes(":")) return false;
-  if (full === "::" || full === "::1") return true;
-  if (full.startsWith("::1")) return true;
-  if (full.startsWith("fe")) return true;
-  if (full.startsWith("fc") || full.startsWith("fd")) return true;
-  if (full.startsWith("ff")) return true;
-  return false;
-}
-
 function isPrivateIp(ip: string): boolean {
-  return ip.includes(":") ? isPrivateIpV6(ip) : isPrivateIpV4(ip);
+  try {
+    if (!ipaddr.isValid(ip)) return true;
+    const parsed = ipaddr.parse(ip);
+    if (parsed.kind() === "ipv4") {
+      const range = parsed.range();
+      return range !== "unicast" && range !== "broadcast";
+    }
+    const range = parsed.range();
+    if (range === "loopback" || range === "linkLocal" || range === "uniqueLocal" || range === "multicast" || range === "unspecified") return true;
+    if (range === "ipv4Mapped") {
+      const ipv4 = (parsed as any).toIPv4Address();
+      return ipv4.range() !== "unicast" && ipv4.range() !== "broadcast";
+    }
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 async function isSafeUrl(url: string): Promise<boolean> {
@@ -625,12 +618,16 @@ router.post("/skills/:id/test", async (req, res) => {
     let triggerScore = 0;
     let reason = "No match";
 
-    if (skill.matchMode === "llm" && hasLlmKey) {
-      const llm = await llmMatch(message, [rows[0]]);
-      if (llm && llm.skillId === skill.id) {
-        wouldTrigger = llm.confidence >= 0.5;
-        triggerScore = llm.confidence;
-        reason = llm.reason;
+    if (skill.matchMode === "llm") {
+      if (hasLlmKey) {
+        const llm = await llmMatch(message, [rows[0]]);
+        if (llm && llm.skillId === skill.id) {
+          wouldTrigger = llm.confidence >= 0.5;
+          triggerScore = llm.confidence;
+          reason = llm.reason;
+        }
+      } else {
+        reason = "LLM matching is unavailable (no API key configured).";
       }
     } else {
       const score = scoreMatch(message, rows[0]);

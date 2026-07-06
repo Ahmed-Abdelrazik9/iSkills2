@@ -321,7 +321,7 @@ export const getGetMeQueryKey = () => {
     }
 
 
-export const getGetMeQueryOptions = <TData = Awaited<ReturnType<typeof getMe>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetMeQueryOptions = <TData = Awaited<ReturnType<typeof getMe>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -340,14 +340,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetMeQueryResult = NonNullable<Awaited<ReturnType<typeof getMe>>>
-export type GetMeQueryError = ErrorType<ApiError>
+export type GetMeQueryError = ErrorType<unknown>
 
 
 /**
  * @summary Get current user
  */
 
-export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = ErrorType<ApiError>>(
+export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = ErrorType<unknown>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -398,7 +398,7 @@ export const getListSkillsQueryKey = () => {
     }
 
 
-export const getListSkillsQueryOptions = <TData = Awaited<ReturnType<typeof listSkills>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSkills>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListSkillsQueryOptions = <TData = Awaited<ReturnType<typeof listSkills>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSkills>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -417,14 +417,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListSkillsQueryResult = NonNullable<Awaited<ReturnType<typeof listSkills>>>
-export type ListSkillsQueryError = ErrorType<ApiError>
+export type ListSkillsQueryError = ErrorType<unknown>
 
 
 /**
  * @summary List all skills for the current user
  */
 
-export function useListSkills<TData = Awaited<ReturnType<typeof listSkills>>, TError = ErrorType<ApiError>>(
+export function useListSkills<TData = Awaited<ReturnType<typeof listSkills>>, TError = ErrorType<unknown>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSkills>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -537,7 +537,7 @@ export const matchSkill = async (matchInput: MatchInput, options?: RequestInit):
 
 
 
-export const getMatchSkillMutationOptions = <TError = ErrorType<ApiError>,
+export const getMatchSkillMutationOptions = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchSkill>>, TError,{data: BodyType<MatchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof matchSkill>>, TError,{data: BodyType<MatchInput>}, TContext> => {
 
@@ -566,12 +566,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type MatchSkillMutationResult = NonNullable<Awaited<ReturnType<typeof matchSkill>>>
     export type MatchSkillMutationBody = BodyType<MatchInput>
-    export type MatchSkillMutationError = ErrorType<ApiError>
+    export type MatchSkillMutationError = ErrorType<unknown>
 
     /**
  * @summary Find the best matching skill for a user message
  */
-export const useMatchSkill = <TError = ErrorType<ApiError>,
+export const useMatchSkill = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchSkill>>, TError,{data: BodyType<MatchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof matchSkill>>,
@@ -1044,7 +1044,7 @@ export const getGetStatsQueryKey = () => {
     }
 
 
-export const getGetStatsQueryOptions = <TData = Awaited<ReturnType<typeof getStats>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetStatsQueryOptions = <TData = Awaited<ReturnType<typeof getStats>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1063,14 +1063,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetStatsQueryResult = NonNullable<Awaited<ReturnType<typeof getStats>>>
-export type GetStatsQueryError = ErrorType<ApiError>
+export type GetStatsQueryError = ErrorType<unknown>
 
 
 /**
  * @summary Get dashboard stats — total skills, active count, top skills by usage
  */
 
-export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError = ErrorType<ApiError>>(
+export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError = ErrorType<unknown>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {

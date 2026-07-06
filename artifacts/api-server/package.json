@@ -17,6 +17,7 @@
     "cors": "^2.8.6",
     "drizzle-orm": "catalog:",
     "express": "^5.2.1",
+    "ipaddr.js": "^2.4.0",
     "jsonwebtoken": "^9.0.3",
     "openai": "^6.45.0",
     "pg": "^8.22.0",

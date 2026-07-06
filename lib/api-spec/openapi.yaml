@@ -107,12 +107,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
 
   # ── Skills ──────────────────────────────────────────────────────────────────
 
@@ -130,12 +124,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Skill"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
 
     post:
       operationId: createSkill
@@ -160,12 +148,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
 
   /iskills2/skills/match:
     post:
@@ -185,12 +167,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MatchResult"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
 
   /iskills2/skills/generate:
     post:
@@ -212,12 +188,6 @@ paths:
                 $ref: "#/components/schemas/GeneratedSkill"
         "400":
           description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-        "401":
-          description: Unauthorized
           content:
             application/json:
               schema:
@@ -372,12 +342,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Stats"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
 
 components:
   securitySchemes:
