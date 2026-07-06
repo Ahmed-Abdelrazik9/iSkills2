@@ -90,6 +90,13 @@ export interface MatchResult {
   reason?: string;
   needsSearch?: boolean;
   searchQuery?: string;
+  searchResults?: SearchResult[];
+}
+
+export interface SearchResult {
+  title: string;
+  url: string;
+  snippet: string;
 }
 
 export interface GenerateInput {
@@ -114,6 +121,7 @@ export interface TestResult {
   reason?: string;
   needsSearch?: boolean;
   searchQuery?: string;
+  searchResults?: SearchResult[];
 }
 
 export interface SkillStat {

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"
 import { Switch } from "@/components/ui/switch"
-import { Wand2, ArrowLeft, Loader2, Plus, X } from "lucide-react"
+import { Wand2, ArrowLeft, Loader2, Plus, X, Zap } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
 
@@ -266,12 +266,15 @@ export default function SkillNew() {
                       <FormLabel className="text-base">Enable iSearch</FormLabel>
                       <FormDescription>When active, this skill will automatically request web search for current information.</FormDescription>
                     </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-orange-500 fill-orange-500" />
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </div>
                   </FormItem>
                 )}
               />

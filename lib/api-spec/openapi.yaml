@@ -574,6 +574,21 @@ components:
           type: boolean
         searchQuery:
           type: string
+        searchResults:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchResult"
+
+    SearchResult:
+      type: object
+      required: [title, url, snippet]
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+        snippet:
+          type: string
 
     GenerateInput:
       type: object
@@ -620,6 +635,10 @@ components:
           type: boolean
         searchQuery:
           type: string
+        searchResults:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchResult"
 
     Stats:
       type: object

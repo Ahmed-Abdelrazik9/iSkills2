@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"
 import { Switch } from "@/components/ui/switch"
-import { ArrowLeft, Loader2, Plus, X, Trash2, Play, CheckCircle2, XCircle } from "lucide-react"
+import { ArrowLeft, Loader2, Plus, X, Trash2, Play, CheckCircle2, XCircle, Zap } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -337,12 +337,15 @@ export default function SkillEdit() {
                         <FormLabel className="text-base">Enable iSearch</FormLabel>
                         <FormDescription>When active, this skill will automatically request web search for current information.</FormDescription>
                       </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-5 w-5 text-orange-500 fill-orange-500" />
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </div>
                     </FormItem>
                   )}
                 />
@@ -417,6 +420,26 @@ export default function SkillEdit() {
                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
                       <p className="text-sm font-medium text-blue-800">iSearch triggered</p>
                       <p className="text-xs text-blue-600 font-mono mt-1">{testResult.searchQuery}</p>
+                    </div>
+                  )}
+                  {testResult.searchResults && testResult.searchResults.length > 0 && (
+                    <div>
+                      <label className="text-xs uppercase tracking-widest font-black text-accent block mb-2">Live Search Results</label>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {testResult.searchResults.map((result, idx) => (
+                          <a
+                            key={idx}
+                            href={result.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block bg-muted p-3 rounded-xl border border-border hover:border-accent transition-colors"
+                          >
+                            <p className="text-sm font-medium text-slate-800">{result.title}</p>
+                            <p className="text-xs text-blue-600 truncate">{result.url}</p>
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{result.snippet}</p>
+                          </a>
+                        ))}
+                      </div>
                     </div>
                   )}
                   <div>
