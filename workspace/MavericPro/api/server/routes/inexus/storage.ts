@@ -634,11 +634,42 @@ export class DatabaseStorage implements IStorage {
 
   // Skill Implementation
   async getSkills(userId: string): Promise<Skill[]> {
-    return db
+    const inexusSkills = await db
       .select()
       .from(skills)
       .where(eq(skills.userId, userId))
       .orderBy(desc(skills.createdAt));
+
+    // Pull in iSkills2 generated skills so they activate in the chat too.
+    const ISKILLS2_SHARED_USER = "iskills2-shared";
+    const iskillsResult = await pool.query(
+      `SELECT id, name, description, instructions, tool, tools, enabled, created_at
+       FROM iskills2_skills
+       WHERE user_id = $1 AND enabled = true`,
+      [ISKILLS2_SHARED_USER],
+    );
+
+    const iskills2Skills: Skill[] = (iskillsResult.rows || []).map((row: any) => {
+      const toolsArray: string[] = row.tools
+        ? (Array.isArray(row.tools) ? row.tools : [row.tools])
+        : [];
+      const tool = toolsArray.includes("isearch")
+        ? "search_web"
+        : (row.tool || "none");
+      return {
+        id: row.id,
+        userId,
+        name: row.name,
+        description: row.description || "",
+        instructions: row.instructions || "",
+        tool,
+        enabled: row.enabled !== false,
+        createdAt: row.created_at,
+      } as Skill;
+    });
+
+    const inexusIds = new Set(inexusSkills.map((s) => s.id));
+    return [...inexusSkills, ...iskills2Skills.filter((s) => !inexusIds.has(s.id))];
   }
 
   async createSkill(userId: string, data: InsertSkill): Promise<Skill> {
