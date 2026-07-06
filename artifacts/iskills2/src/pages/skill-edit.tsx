@@ -6,7 +6,6 @@ import {
   useGetSkill, 
   useUpdateSkill, 
   useDeleteSkill,
-  useTestSkill,
   getGetSkillQueryKey,
   getListSkillsQueryKey 
 } from "@workspace/api-client-react"
@@ -92,7 +91,7 @@ export default function SkillEdit() {
 
   const updateSkill = useUpdateSkill()
   const deleteSkill = useDeleteSkill()
-  const testSkillMutation = useTestSkill()
+  const [isTesting, setIsTesting] = useState(false)
 
   const onSubmit = (data: z.infer<typeof skillSchema>) => {
     const payload = {
@@ -125,16 +124,23 @@ export default function SkillEdit() {
     })
   }
 
-  const handleTest = () => {
+  const handleTest = async () => {
     if (!testMessage.trim()) return
-    testSkillMutation.mutate({ id, data: { message: testMessage } }, {
-      onSuccess: (res) => {
-        setTestResult(res)
-      },
-      onError: (err) => {
-        toast({ title: "Test failed", description: (err as any)?.response?.data?.error || "Could not run test", variant: "destructive" })
-      }
-    })
+    setIsTesting(true)
+    setTestResult(null)
+    try {
+      const res = await fetch('/api/iskills2/skills/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: testMessage })
+      })
+      if (!res.ok) throw new Error(await res.text())
+      setTestResult(await res.json())
+    } catch (err: any) {
+      toast({ title: "Test failed", description: err.message || "Could not run test", variant: "destructive" })
+    } finally {
+      setIsTesting(false)
+    }
   }
 
   if (isLoading) {
@@ -350,7 +356,7 @@ export default function SkillEdit() {
                 className="min-h-[100px] font-sans"
               />
             </div>
-            <Button className="w-full" onClick={handleTest} disabled={testSkillMutation.isPending || !testMessage.trim()}>
+            <Button className="w-full" onClick={handleTest} disabled={isTesting || !testMessage.trim()}>
               {testSkillMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Run Test
             </Button>
@@ -359,7 +365,7 @@ export default function SkillEdit() {
           {testResult && (
             <div className="p-6 bg-background/50 border-t border-border space-y-6">
               <div className="flex items-center gap-3">
-                {testResult.wouldTrigger ? (
+                {testResult.matched ? (
                   <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
                     <CheckCircle2 className="h-6 w-6 text-green-500" />
                   </div>
@@ -369,25 +375,24 @@ export default function SkillEdit() {
                   </div>
                 )}
                 <div>
-                  <p className="font-bold">{testResult.wouldTrigger ? "Match Found" : "No Match"}</p>
+                  <p className="font-bold">{testResult.matched ? "Match Found" : "No Match"}</p>
                   <p className="text-sm text-muted-foreground">
-                    Confidence score: <span className="font-mono">{testResult.triggerScore?.toFixed(2) || "N/A"}</span>
+                    Confidence score: <span className="font-mono">{testResult.confidence?.toFixed(2) || "N/A"}</span>
                   </p>
                 </div>
               </div>
 
-              {testResult.wouldTrigger && (
+              {testResult.matched && testResult.skill && (
                 <>
                   <div>
-                    <label className="text-xs uppercase tracking-widest font-black text-accent block mb-2">Injected Prompt</label>
-                    <div className="bg-muted p-4 rounded-xl text-sm font-mono whitespace-pre-wrap text-muted-foreground max-h-64 overflow-y-auto border border-border">
-                      {testResult.injectedPrompt}
-                    </div>
+                    <label className="text-xs uppercase tracking-widest font-black text-accent block mb-2">Matched Skill</label>
+                    <p className="text-sm font-medium text-slate-800">{testResult.skill.name}</p>
+                    <p className="text-xs text-muted-foreground">{testResult.reason}</p>
                   </div>
                   <div>
-                    <label className="text-xs uppercase tracking-widest font-black text-accent block mb-2">Preview Response</label>
-                    <div className="bg-card border border-primary/20 p-4 rounded-xl text-sm whitespace-pre-wrap">
-                      {testResult.sampleResponse}
+                    <label className="text-xs uppercase tracking-widest font-black text-accent block mb-2">Instructions</label>
+                    <div className="bg-muted p-4 rounded-xl text-sm font-mono whitespace-pre-wrap text-muted-foreground max-h-64 overflow-y-auto border border-border">
+                      {testResult.skill.instructions}
                     </div>
                   </div>
                 </>
