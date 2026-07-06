@@ -459,6 +459,37 @@ const startServer = async () => {
     );
   }
 
+  // ── iSkills2 integration ───────────────────────────────────────────────────
+  if (!process.env.ISKILLS2_DATABASE_URL && process.env.DATABASE_URL) {
+    process.env.ISKILLS2_DATABASE_URL = process.env.DATABASE_URL;
+    logger.info('💎 [Maveric-Boot] iSkills2: ISKILLS2_DATABASE_URL set from DATABASE_URL');
+  }
+  if (!process.env.ISKILLS2_JWT_SECRET && process.env.JWT_SECRET) {
+    process.env.ISKILLS2_JWT_SECRET = process.env.JWT_SECRET;
+    logger.info('💎 [Maveric-Boot] iSkills2: ISKILLS2_JWT_SECRET set from JWT_SECRET');
+  }
+
+  const iskills2RouterPath = path.resolve(__dirname, '../../iskills2-built/iskills2-router.mjs');
+  const iskills2PublicPath = path.resolve(__dirname, '../../iskills2-built/public');
+  if (fs.existsSync(iskills2RouterPath) && fs.existsSync(iskills2PublicPath)) {
+    try {
+      const { pathToFileURL } = require('url');
+      const { default: iskills2Router } = await import(pathToFileURL(iskills2RouterPath).href);
+      app.use('/api/iskills2', iskills2Router);
+      app.use('/iskills2', express.static(iskills2PublicPath));
+      app.get('/iskills2/*', (req, res) => {
+        res.sendFile(path.join(iskills2PublicPath, 'index.html'));
+      });
+      logger.info('💎 [Maveric-Boot] iSkills2 integrated: /api/iskills2 + /iskills2');
+    } catch (err) {
+      logger.error('❌ [Maveric-Boot] Failed to integrate iSkills2:', err);
+    }
+  } else {
+    logger.warn(
+      `⚠️ [Maveric-Boot] iSkills2 build not found. Checked: ${iskills2RouterPath}, ${iskills2PublicPath}`,
+    );
+  }
+
   app.use(ErrorController);
 
   app.use((req, res) => {

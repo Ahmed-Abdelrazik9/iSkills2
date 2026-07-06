@@ -44,6 +44,7 @@
     "start:production": "node start-production.js",
     "backend:dev": "node scripts/ensure-workspace-builds.js && cross-env NODE_ENV=development npx nodemon",
     "agent-os:backend": "cd agent-os && npx pnpm --filter @workspace/api-server run dev",
+    "build:iskills2": "cd ../.. && BASE_PATH=/iskills2/ pnpm --filter @workspace/iskills2 run build && pnpm --filter @workspace/api-server run build && rm -rf workspace/MavericPro/iskills2-built && mkdir -p workspace/MavericPro/iskills2-built/public && cp -r artifacts/iskills2/dist/public/* workspace/MavericPro/iskills2-built/public/ && cp artifacts/api-server/dist/iskills2-router.mjs workspace/MavericPro/iskills2-built/iskills2-router.mjs",
     "ianatomy:dev": "cd Newapp/ianatomy && (ls node_modules/fabric >/dev/null 2>&1 || npm install) && npm run dev",
     "istudio:dev": "cd Newapp/istudio && npm run dev -- --port 3005",
     "start": "node start-render.js",
