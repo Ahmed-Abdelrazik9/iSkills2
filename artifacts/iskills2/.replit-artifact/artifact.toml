@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/iskills2/"
+title = "iSkills2"
+version = "1.0.0"
+id = "artifacts/iskills2"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/iskills2/" ]
+localPort = 22500
+
+[services.development]
+run = "pnpm --filter @workspace/iskills2 run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/iskills2", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/iskills2/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22500"
+BASE_PATH = "/iskills2/"

@@ -21,3 +21,9 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+ISKILLS2_DATABASE_URL = "postgresql://postgres:LThjrzQcLqbukZjZhtIGMBBZHhWvjfEA@yamanote.proxy.rlwy.net:21896/railway"
+ISKILLS2_JWT_SECRET = "edf9f91583d0e50f7f66a6219d3cb576a20ccfb144aaa0b4197334d92e362699"
