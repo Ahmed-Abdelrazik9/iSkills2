@@ -44665,6 +44665,7 @@ function signToken(userId) {
 // src/routes/iskills2/index.ts
 var router = (0, import_express.Router)();
 var dnsResolve4 = promisify(dns.resolve4);
+var dnsResolve6 = promisify(dns.resolve6);
 var hasLlmKey = !!(process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY);
 var openai = new OpenAI(
   process.env.OPENROUTER_API_KEY ? { baseURL: "https://openrouter.ai/api/v1", apiKey: process.env.OPENROUTER_API_KEY } : { apiKey: process.env.OPENAI_API_KEY || void 0 }
@@ -44760,7 +44761,7 @@ async function searchWeb(query) {
     return [];
   }
 }
-function isPrivateIp(ip) {
+function isPrivateIpV4(ip) {
   const parts = ip.split(".").map(Number);
   if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255)) return true;
   const [a, b] = parts;
@@ -44772,6 +44773,19 @@ function isPrivateIp(ip) {
   if (a === 100 && b >= 64 && b <= 127) return true;
   return false;
 }
+function isPrivateIpV6(ip) {
+  const full = ip.toLowerCase().trim();
+  if (!full.includes(":")) return false;
+  if (full === "::" || full === "::1") return true;
+  if (full.startsWith("::1")) return true;
+  if (full.startsWith("fe")) return true;
+  if (full.startsWith("fc") || full.startsWith("fd")) return true;
+  if (full.startsWith("ff")) return true;
+  return false;
+}
+function isPrivateIp(ip) {
+  return ip.includes(":") ? isPrivateIpV6(ip) : isPrivateIpV4(ip);
+}
 async function isSafeUrl(url) {
   try {
     const parsed = new URL(url);
@@ -44779,7 +44793,14 @@ async function isSafeUrl(url) {
     const hostname = parsed.hostname.toLowerCase();
     if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname === "127.0.0.1") return false;
     if (hostname === "metadata.google.internal" || hostname.endsWith(".metadata.google.internal")) return false;
-    const ips = await dnsResolve4(hostname);
+    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) || hostname.includes(":")) {
+      if (isPrivateIp(hostname)) return false;
+    }
+    const [v4, v6] = await Promise.allSettled([dnsResolve4(hostname), dnsResolve6(hostname)]);
+    const ips = [
+      ...v4.status === "fulfilled" ? v4.value : [],
+      ...v6.status === "fulfilled" ? v6.value : []
+    ];
     if (!ips.length) return false;
     return !ips.some(isPrivateIp);
   } catch {
@@ -45044,7 +45065,8 @@ router.post("/skills/match", async (req, res) => {
       }
     }
     if (!best) {
-      const scored = rows.map((r) => ({ skill: r, score: scoreMatch(message, r) })).sort((a, b) => b.score - a.score);
+      const keywordRows = rows.filter((r) => (r.match_mode || "keyword") === "keyword");
+      const scored = keywordRows.map((r) => ({ skill: r, score: scoreMatch(message, r) })).sort((a, b) => b.score - a.score);
       const top = scored[0];
       const threshold = 0.15;
       if (top.score >= threshold) {
