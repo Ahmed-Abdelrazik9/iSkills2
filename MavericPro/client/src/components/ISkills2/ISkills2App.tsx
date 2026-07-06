@@ -801,7 +801,7 @@ function EditSkillView({
       showToast={showToast}
       onSave={async (data) => {
         const updated = await apiFetch<Skill>(`/skills/${id}`, {
-          method: 'PUT',
+          method: 'PATCH',
           body: JSON.stringify(data),
         });
         setSkill(updated);
