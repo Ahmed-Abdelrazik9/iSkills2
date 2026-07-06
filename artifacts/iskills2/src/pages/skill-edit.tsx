@@ -357,7 +357,7 @@ export default function SkillEdit() {
               />
             </div>
             <Button className="w-full" onClick={handleTest} disabled={isTesting || !testMessage.trim()}>
-              {testSkillMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {isTesting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Run Test
             </Button>
           </div>
