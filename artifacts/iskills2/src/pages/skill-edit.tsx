@@ -37,6 +37,8 @@ const skillSchema = z.object({
   instructions: z.string().min(1, "Instructions are required"),
   enabled: z.boolean(),
   isearch: z.boolean(),
+  tools: z.array(z.string()).default([]),
+  matchMode: z.enum(["keyword", "llm"]).default("llm"),
   priority: z.coerce.number().min(0).max(100),
   triggerExamples: z.array(z.object({ value: z.string().min(1, "Example cannot be empty") }))
 })
@@ -63,6 +65,8 @@ export default function SkillEdit() {
       instructions: "",
       enabled: true,
       isearch: false,
+      tools: [],
+      matchMode: "llm",
       priority: 50,
       triggerExamples: [{ value: "" }]
     }
@@ -83,6 +87,8 @@ export default function SkillEdit() {
         instructions: skill.instructions,
         enabled: skill.enabled,
         isearch: skill.isearch,
+        tools: skill.tools || [],
+        matchMode: skill.matchMode || "llm",
         priority: skill.priority,
         triggerExamples: skill.triggerExamples.length > 0 
           ? skill.triggerExamples.map(v => ({ value: v }))
@@ -99,7 +105,8 @@ export default function SkillEdit() {
   const onSubmit = (data: z.infer<typeof skillSchema>) => {
     const payload = {
       ...data,
-      triggerExamples: data.triggerExamples.map(t => t.value)
+      triggerExamples: data.triggerExamples.map(t => t.value),
+      tools: data.tools.length ? data.tools : (data.isearch ? ["isearch"] : [])
     }
     
     updateSkill.mutate({ id, data: payload }, {
@@ -351,6 +358,74 @@ export default function SkillEdit() {
                 />
               </div>
 
+              <div className="bg-card border border-border p-6 rounded-3xl shadow-sm space-y-4">
+                <FormField
+                  control={form.control}
+                  name="tools"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Tool Chain</FormLabel>
+                        <FormDescription>Select tools to run when this skill matches.</FormDescription>
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        {[
+                          { key: "isearch", label: "iSearch", icon: Globe },
+                          { key: "web_fetch", label: "Web Fetch", icon: () => null },
+                        ].map(({ key, label, icon: Icon }) => (
+                          <label
+                            key={key}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors ${
+                              field.value?.includes(key)
+                                ? "border-amber-500/50 bg-amber-500/10 text-amber-700"
+                                : "border-border bg-background hover:bg-muted"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={field.value?.includes(key) || false}
+                              onChange={(e) => {
+                                const current = field.value || []
+                                const next = e.target.checked
+                                  ? [...current, key]
+                                  : current.filter((v) => v !== key)
+                                field.onChange(next)
+                                if (key === "isearch") {
+                                  form.setValue("isearch", e.target.checked)
+                                }
+                              }}
+                            />
+                            <Icon className="h-4 w-4" />
+                            <span className="text-sm font-medium">{label}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="matchMode"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between w-full space-y-0 pt-2 border-t border-border">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">LLM Intent Matching</FormLabel>
+                        <FormDescription>Use an LLM to decide when this skill activates instead of keyword overlap.</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value === "llm"}
+                          onCheckedChange={(checked) => field.onChange(checked ? "llm" : "keyword")}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <div className="flex justify-end gap-4 pb-12">
                 <Button type="submit" size="lg" disabled={updateSkill.isPending || !form.formState.isDirty} className="shadow-md">
                   {updateSkill.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
@@ -392,7 +467,7 @@ export default function SkillEdit() {
           {testResult && (
             <div className="p-6 bg-background/50 border-t border-border space-y-6">
               <div className="flex items-center gap-3">
-                {testResult.matched ? (
+                {testResult.wouldTrigger ? (
                   <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
                     <CheckCircle2 className="h-6 w-6 text-green-500" />
                   </div>
@@ -402,14 +477,17 @@ export default function SkillEdit() {
                   </div>
                 )}
                 <div>
-                  <p className="font-bold">{testResult.matched ? "Match Found" : "No Match"}</p>
+                  <p className="font-bold">{testResult.wouldTrigger ? "Match Found" : "No Match"}</p>
                   <p className="text-sm text-muted-foreground">
-                    Confidence score: <span className="font-mono">{testResult.confidence?.toFixed(2) || "N/A"}</span>
+                    Confidence score: <span className="font-mono">{testResult.triggerScore?.toFixed(2) || "N/A"}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Match mode: <span className="font-mono uppercase">{testResult.matchMode || "keyword"}</span>
                   </p>
                 </div>
               </div>
 
-              {testResult.matched && testResult.skill && (
+              {testResult.wouldTrigger && testResult.skill && (
                 <>
                   <div>
                     <label className="text-xs uppercase tracking-widest font-black text-accent block mb-2">Matched Skill</label>

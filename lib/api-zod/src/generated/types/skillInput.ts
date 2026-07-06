@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SkillInputMatchMode } from './skillInputMatchMode';
 
 export interface SkillInput {
   /** @minLength 1 */
@@ -16,6 +17,8 @@ export interface SkillInput {
   tool?: string;
   enabled?: boolean;
   isearch?: boolean;
+  tools?: string[];
+  matchMode?: SkillInputMatchMode;
   priority?: number;
   triggerExamples?: string[];
 }

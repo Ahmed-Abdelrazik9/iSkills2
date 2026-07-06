@@ -5,10 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { GeneratedSkillMatchMode } from './generatedSkillMatchMode';
 
 export interface GeneratedSkill {
   name: string;
   description: string;
   instructions: string;
   triggerExamples: string[];
+  tools?: string[];
+  matchMode?: GeneratedSkillMatchMode;
 }

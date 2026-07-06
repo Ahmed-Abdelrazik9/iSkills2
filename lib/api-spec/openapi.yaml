@@ -466,7 +466,7 @@ components:
 
     Skill:
       type: object
-      required: [id, userId, name, description, instructions, tool, enabled, isearch, priority, triggerExamples, usageCount, createdAt, updatedAt]
+      required: [id, userId, name, description, instructions, tool, enabled, isearch, tools, matchMode, priority, triggerExamples, usageCount, createdAt, updatedAt]
       properties:
         id:
           type: string
@@ -484,6 +484,13 @@ components:
           type: boolean
         isearch:
           type: boolean
+        tools:
+          type: array
+          items:
+            type: string
+        matchMode:
+          type: string
+          enum: [keyword, llm]
         priority:
           type: integer
         triggerExamples:
@@ -521,6 +528,13 @@ components:
           type: boolean
         isearch:
           type: boolean
+        tools:
+          type: array
+          items:
+            type: string
+        matchMode:
+          type: string
+          enum: [keyword, llm]
         priority:
           type: integer
         triggerExamples:
@@ -544,6 +558,13 @@ components:
           type: boolean
         isearch:
           type: boolean
+        tools:
+          type: array
+          items:
+            type: string
+        matchMode:
+          type: string
+          enum: [keyword, llm]
         priority:
           type: integer
         triggerExamples:
@@ -578,6 +599,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SearchResult"
+        toolResults:
+          type: array
+          items:
+            $ref: "#/components/schemas/ToolResult"
 
     SearchResult:
       type: object
@@ -589,6 +614,17 @@ components:
           type: string
         snippet:
           type: string
+
+    ToolResult:
+      type: object
+      required: [type, status, output]
+      properties:
+        type:
+          type: string
+        status:
+          type: string
+        output:
+          type: object
 
     GenerateInput:
       type: object
@@ -611,6 +647,13 @@ components:
           type: array
           items:
             type: string
+        tools:
+          type: array
+          items:
+            type: string
+        matchMode:
+          type: string
+          enum: [keyword, llm]
 
     TestInput:
       type: object
@@ -639,6 +682,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SearchResult"
+        toolResults:
+          type: array
+          items:
+            $ref: "#/components/schemas/ToolResult"
 
     Stats:
       type: object

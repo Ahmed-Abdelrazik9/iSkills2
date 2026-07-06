@@ -34,6 +34,14 @@ export interface AuthResult {
   user: User;
 }
 
+export type SkillMatchMode = typeof SkillMatchMode[keyof typeof SkillMatchMode];
+
+
+export const SkillMatchMode = {
+  keyword: 'keyword',
+  llm: 'llm',
+} as const;
+
 export interface Skill {
   id: string;
   userId: string;
@@ -44,6 +52,8 @@ export interface Skill {
   tool: string | null;
   enabled: boolean;
   isearch: boolean;
+  tools: string[];
+  matchMode: SkillMatchMode;
   priority: number;
   triggerExamples: string[];
   usageCount: number;
@@ -52,6 +62,14 @@ export interface Skill {
   createdAt: string;
   updatedAt: string;
 }
+
+export type SkillInputMatchMode = typeof SkillInputMatchMode[keyof typeof SkillInputMatchMode];
+
+
+export const SkillInputMatchMode = {
+  keyword: 'keyword',
+  llm: 'llm',
+} as const;
 
 export interface SkillInput {
   /** @minLength 1 */
@@ -63,9 +81,19 @@ export interface SkillInput {
   tool?: string;
   enabled?: boolean;
   isearch?: boolean;
+  tools?: string[];
+  matchMode?: SkillInputMatchMode;
   priority?: number;
   triggerExamples?: string[];
 }
+
+export type SkillUpdateMatchMode = typeof SkillUpdateMatchMode[keyof typeof SkillUpdateMatchMode];
+
+
+export const SkillUpdateMatchMode = {
+  keyword: 'keyword',
+  llm: 'llm',
+} as const;
 
 export interface SkillUpdate {
   /** @minLength 1 */
@@ -75,12 +103,28 @@ export interface SkillUpdate {
   tool?: string;
   enabled?: boolean;
   isearch?: boolean;
+  tools?: string[];
+  matchMode?: SkillUpdateMatchMode;
   priority?: number;
   triggerExamples?: string[];
 }
 
 export interface MatchInput {
   message: string;
+}
+
+export interface SearchResult {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+export type ToolResultOutput = { [key: string]: unknown };
+
+export interface ToolResult {
+  type: string;
+  status: string;
+  output: ToolResultOutput;
 }
 
 export interface MatchResult {
@@ -91,23 +135,28 @@ export interface MatchResult {
   needsSearch?: boolean;
   searchQuery?: string;
   searchResults?: SearchResult[];
-}
-
-export interface SearchResult {
-  title: string;
-  url: string;
-  snippet: string;
+  toolResults?: ToolResult[];
 }
 
 export interface GenerateInput {
   prompt: string;
 }
 
+export type GeneratedSkillMatchMode = typeof GeneratedSkillMatchMode[keyof typeof GeneratedSkillMatchMode];
+
+
+export const GeneratedSkillMatchMode = {
+  keyword: 'keyword',
+  llm: 'llm',
+} as const;
+
 export interface GeneratedSkill {
   name: string;
   description: string;
   instructions: string;
   triggerExamples: string[];
+  tools?: string[];
+  matchMode?: GeneratedSkillMatchMode;
 }
 
 export interface TestInput {
@@ -122,6 +171,7 @@ export interface TestResult {
   needsSearch?: boolean;
   searchQuery?: string;
   searchResults?: SearchResult[];
+  toolResults?: ToolResult[];
 }
 
 export interface SkillStat {

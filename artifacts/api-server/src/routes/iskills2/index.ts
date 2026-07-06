@@ -1,14 +1,27 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import OpenAI from "openai";
 import { pool } from "./db";
 import { signToken } from "./auth";
 import { SHARED_USER_ID } from "./db";
 
 const router = Router();
 
+const hasLlmKey = !!(process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY);
+
+const openai = new OpenAI(
+  process.env.OPENROUTER_API_KEY
+    ? { baseURL: "https://openrouter.ai/api/v1", apiKey: process.env.OPENROUTER_API_KEY }
+    : { apiKey: process.env.OPENAI_API_KEY || undefined },
+);
+
+const LLM_MATCH_MODEL = process.env.OPENROUTER_API_KEY ? "openai/gpt-4o-mini" : "gpt-5-mini";
+const LLM_GENERATE_MODEL = process.env.OPENROUTER_API_KEY ? "openai/gpt-4o" : "gpt-5.4";
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function rowToSkill(r: any) {
+  const tools = parseTools(r.tools);
   return {
     id: r.id,
     userId: r.user_id,
@@ -18,6 +31,8 @@ function rowToSkill(r: any) {
     tool: r.tool ?? null,
     enabled: r.enabled,
     isearch: r.isearch ?? false,
+    tools,
+    matchMode: r.match_mode ?? "keyword",
     priority: r.priority,
     triggerExamples: r.trigger_examples ?? [],
     usageCount: r.usage_count,
@@ -25,6 +40,37 @@ function rowToSkill(r: any) {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
+}
+
+function parseTools(raw: any): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeTools(value: any): string[] | null {
+  if (value === undefined || value === null) return null;
+  if (Array.isArray(value)) return value.filter((v) => typeof v === "string");
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.filter((v) => typeof v === "string");
+    } catch {
+      return [value];
+    }
+  }
+  return [];
+}
+
+function getEffectiveTools(skill: any): string[] {
+  const tools = skill.tools && skill.tools.length ? skill.tools : [];
+  if (!tools.length && skill.isearch) return ["isearch"];
+  return tools;
 }
 
 async function searchWeb(query: string): Promise<{ title: string; url: string; snippet: string }[]> {
@@ -68,6 +114,37 @@ async function searchWeb(query: string): Promise<{ title: string; url: string; s
   }
 }
 
+async function fetchUrl(url: string): Promise<{ title: string; url: string; snippet: string } | null> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      },
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : url;
+    const text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 400);
+    return { title, url, snippet: text };
+  } catch (err: any) {
+    console.error("[iSkills2] fetch URL failed:", err.message);
+    return null;
+  }
+}
+
+function extractUrls(text: string): string[] {
+  const urlRegex = /https?:\/\/[^\s\)\]\>"]+/gi;
+  return [...new Set((text.match(urlRegex) || []))];
+}
+
 function needsWebSearch(message: string): { needsSearch: boolean; searchQuery: string } {
   const m = (message || "").toLowerCase();
   const freshnessSignals = [
@@ -96,6 +173,83 @@ function scoreMatch(message: string, skill: any): number {
   return hits / tokens.length;
 }
 
+async function llmMatch(
+  message: string,
+  skills: any[],
+): Promise<{ skillId: string | null; confidence: number; reason: string } | null> {
+  if (!hasLlmKey) return null;
+  if (!skills.length) return null;
+
+  const prompt = `You are a skill classifier. Given a user message and a list of skills, pick the single skill that best matches the user's intent. Return only a JSON object with keys: skillId (string id of best skill, or null if none), confidence (number 0-1), reason (short explanation).
+
+Skills:
+${skills.map((s) => `- id: ${s.id}
+  name: ${s.name}
+  description: ${s.description}
+  instructions summary: ${(s.instructions || "").slice(0, 120)}
+  trigger examples: ${(s.trigger_examples || []).join(", ")}`).join("\n\n")}
+
+User message: "${message}"
+
+Return JSON:`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: LLM_MATCH_MODEL,
+      messages: [{ role: "user", content: prompt }],
+      max_completion_tokens: 256,
+      response_format: { type: "json_object" },
+    });
+    const content = response.choices[0]?.message?.content || "";
+    const parsed = JSON.parse(content);
+    const skillId = typeof parsed.skillId === "string" && parsed.skillId ? parsed.skillId : null;
+    const confidence = typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : 0;
+    const reason = typeof parsed.reason === "string" ? parsed.reason : "LLM selected best match";
+    return { skillId, confidence, reason };
+  } catch (err: any) {
+    console.error("[iSkills2] LLM match failed:", err.message);
+    return null;
+  }
+}
+
+async function runTool(
+  tool: string,
+  message: string,
+): Promise<{ type: string; status: string; output: any }> {
+  switch (tool) {
+    case "isearch": {
+      const { needsSearch, searchQuery } = needsWebSearch(message);
+      if (!needsSearch) {
+        return { type: "isearch", status: "skipped", output: { needsSearch, searchQuery, searchResults: [] } };
+      }
+      const searchResults = await searchWeb(searchQuery);
+      return { type: "isearch", status: "ok", output: { needsSearch, searchQuery, searchResults } };
+    }
+    case "web_fetch": {
+      const urls = extractUrls(message);
+      if (!urls.length) {
+        return { type: "web_fetch", status: "skipped", output: { urls: [], results: [] } };
+      }
+      const results = (await Promise.all(urls.map(fetchUrl))).filter(Boolean) as { title: string; url: string; snippet: string }[];
+      return { type: "web_fetch", status: "ok", output: { urls, results } };
+    }
+    default:
+      return { type: tool, status: "unknown_tool", output: null };
+  }
+}
+
+async function executeTools(tools: string[], message: string) {
+  const results = await Promise.all(tools.map((tool) => runTool(tool, message)));
+  // Backward-compatible top-level fields for existing clients
+  const isearch = results.find((r) => r.type === "isearch" && r.status === "ok")?.output;
+  return {
+    toolResults: results,
+    needsSearch: isearch?.needsSearch ?? false,
+    searchQuery: isearch?.searchQuery ?? "",
+    searchResults: isearch?.searchResults ?? [],
+  };
+}
+
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
 router.post("/auth/register", async (req, res) => {
@@ -107,7 +261,7 @@ router.post("/auth/register", async (req, res) => {
   try {
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await pool.query(
-      "INSERT INTO iskills2_users (email, password_hash) VALUES ($1,$2) RETURNING *",
+      "INSERT INTO iskills2_users (id, email, password_hash) VALUES ($1,$2,$3) RETURNING *",
       [email.toLowerCase().trim(), hash],
     );
     const user = rows[0];
@@ -118,7 +272,7 @@ router.post("/auth/register", async (req, res) => {
     });
   } catch (err: any) {
     if (err.code === "23505") {
-      res.status(409).json({ error: "Email already in use" });
+      res.status(409).json({ error: "Email already registered" });
     } else {
       res.status(500).json({ error: err.message });
     }
@@ -133,7 +287,7 @@ router.post("/auth/login", async (req, res) => {
   }
   try {
     const { rows } = await pool.query(
-      "SELECT * FROM iskills2_users WHERE email = $1",
+      "SELECT * FROM iskills2_users WHERE email=$1",
       [email.toLowerCase().trim()],
     );
     const user = rows[0];
@@ -141,8 +295,9 @@ router.post("/auth/login", async (req, res) => {
       res.status(401).json({ error: "Invalid credentials" });
       return;
     }
+    const token = signToken(user.id);
     res.json({
-      token: signToken(user.id),
+      token,
       user: { id: user.id, email: user.email, createdAt: user.created_at },
     });
   } catch (err: any) {
@@ -151,17 +306,7 @@ router.post("/auth/login", async (req, res) => {
 });
 
 router.get("/auth/me", async (req, res) => {
-  try {
-    const { rows } = await pool.query(
-      "SELECT * FROM iskills2_users WHERE id = $1",
-      [SHARED_USER_ID],
-    );
-    if (!rows[0]) { res.status(404).json({ error: "User not found" }); return; }
-    const u = rows[0];
-    res.json({ id: u.id, email: u.email, createdAt: u.created_at });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
+  res.json({ id: SHARED_USER_ID, email: "shared@iskills2.local" });
 });
 
 // ── Skills ────────────────────────────────────────────────────────────────────
@@ -179,27 +324,20 @@ router.get("/skills", async (req, res) => {
 });
 
 router.post("/skills", async (req, res) => {
-  const { name, description, instructions, tool, enabled, isearch, priority, triggerExamples } = req.body ?? {};
-  if (!name?.trim()) { res.status(400).json({ error: "name is required" }); return; }
-  if (!description?.trim()) { res.status(400).json({ error: "description is required" }); return; }
-  if (!instructions?.trim()) { res.status(400).json({ error: "instructions is required" }); return; }
+  const { name, description, instructions, tool, enabled, isearch, tools, matchMode, priority, triggerExamples } = req.body ?? {};
+  if (!name || !description || !instructions) {
+    res.status(400).json({ error: "name, description, and instructions required" });
+    return;
+  }
   try {
+    const finalTools = normalizeTools(tools) ?? (isearch ? ["isearch"] : []);
+    const finalMatchMode = matchMode === "llm" ? "llm" : "keyword";
     const { rows } = await pool.query(
       `INSERT INTO iskills2_skills
-        (user_id, name, description, instructions, tool, enabled, isearch, priority, trigger_examples)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        (user_id, name, description, instructions, tool, enabled, isearch, tools, match_mode, priority, trigger_examples)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING *`,
-      [
-        SHARED_USER_ID,
-        name.trim(),
-        description.trim(),
-        instructions.trim(),
-        tool || null,
-        enabled !== false,
-        isearch === true,
-        priority ?? 0,
-        triggerExamples ?? [],
-      ],
+      [SHARED_USER_ID, name, description, instructions, tool || null, enabled !== false, isearch || false, JSON.stringify(finalTools), finalMatchMode, priority ?? 0, triggerExamples || []],
     );
     res.status(201).json(rowToSkill(rows[0]));
   } catch (err: any) {
@@ -220,71 +358,126 @@ router.post("/skills/match", async (req, res) => {
       res.json({ matched: false, confidence: 0, skill: null, reason: "No enabled skills" });
       return;
     }
-    const scored = rows
-      .map((r: Record<string, unknown>) => ({ skill: r, score: scoreMatch(message, r) }))
-      .sort((a: { score: number }, b: { score: number }) => b.score - a.score);
-    const best = scored[0];
-    const threshold = 0.15;
-    if (best.score >= threshold) {
-      const skill = rowToSkill(best.skill);
-      const searchSignal = skill.isearch ? needsWebSearch(message) : { needsSearch: false, searchQuery: "" };
-      let searchResults: { title: string; url: string; snippet: string }[] = [];
-      if (searchSignal.needsSearch) {
-        searchResults = await searchWeb(searchSignal.searchQuery);
+
+    let best: { skill: any; confidence: number; reason: string } | null = null;
+
+    // Try LLM matching first for all skills (global override if any skill uses LLM, or if OPENAI key available).
+    const anyLlm = rows.some((r) => (r.match_mode || "keyword") === "llm");
+    if (anyLlm && hasLlmKey) {
+      const llm = await llmMatch(message, rows);
+      if (llm && llm.skillId) {
+        const matched = rows.find((r) => r.id === llm.skillId);
+        if (matched) {
+          best = { skill: matched, confidence: llm.confidence, reason: llm.reason };
+        }
       }
+    }
+
+    // Fallback to keyword matching if LLM didn't pick a skill or wasn't used.
+    if (!best) {
+      const scored = rows
+        .map((r: Record<string, unknown>) => ({ skill: r, score: scoreMatch(message, r) }))
+        .sort((a: { score: number }, b: { score: number }) => b.score - a.score);
+      const top = scored[0];
+      const threshold = 0.15;
+      if (top.score >= threshold) {
+        best = { skill: top.skill, confidence: Math.min(top.score * 2, 1), reason: `Matched "${top.skill.name}" with ${Math.round(top.score * 100)}% keyword overlap` };
+      }
+    }
+
+    if (best) {
+      const skill = rowToSkill(best.skill);
+      const tools = getEffectiveTools(skill);
+      const toolOutput = await executeTools(tools, message);
       res.json({
         matched: true,
-        confidence: Math.min(best.score * 2, 1),
+        confidence: best.confidence,
         skill,
-        reason: `Matched "${best.skill.name}" with ${Math.round(best.score * 100)}% keyword overlap`,
-        ...searchSignal,
-        searchResults,
+        reason: best.reason,
+        ...toolOutput,
       });
     } else {
-      res.json({ matched: false, confidence: best.score, skill: null, reason: "No skill matched the message", needsSearch: false, searchQuery: "", searchResults: [] });
+      res.json({ matched: false, confidence: 0, skill: null, reason: "No skill matched the message", needsSearch: false, searchQuery: "", searchResults: [], toolResults: [] });
     }
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Generate skill from natural language
 router.post("/skills/generate", async (req, res) => {
   const { prompt } = req.body ?? {};
   if (!prompt?.trim()) { res.status(400).json({ error: "prompt required" }); return; }
-  const p = prompt.trim().toLowerCase();
 
-  // Derive a name from the first few significant words
+  const hasLlmKey = !!(process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY);
+
+  if (hasLlmKey) {
+    try {
+      const systemPrompt = `You are a skill designer for an AI assistant platform. Given a user description, create a skill definition.
+
+Return only a JSON object with these fields:
+- name: concise, title-case skill name (max 6 words)
+- description: 1-2 sentences describing when the skill should activate
+- instructions: a system prompt that guides the AI when this skill is active (4-8 sentences)
+- triggerExamples: array of 3 example user messages that should activate this skill
+- tools: array of tool names. Available tools: "isearch" (web search) and "web_fetch" (fetch URLs mentioned in the message). Only include tools if the skill would benefit from live web data.
+- matchMode: either "llm" or "keyword". Use "llm" for nuanced intent matching, "keyword" for simple keyword matching.
+
+User description: "${prompt.trim()}"
+
+Return JSON:`;
+
+      const response = await openai.chat.completions.create({
+        model: LLM_GENERATE_MODEL,
+        messages: [{ role: "user", content: systemPrompt }],
+        max_completion_tokens: 1024,
+        response_format: { type: "json_object" },
+      });
+      const content = response.choices[0]?.message?.content || "";
+      const parsed = JSON.parse(content);
+      res.json({
+        name: String(parsed.name || "New Skill").slice(0, 80),
+        description: String(parsed.description || prompt.trim()).slice(0, 300),
+        instructions: String(parsed.instructions || "").slice(0, 4000),
+        triggerExamples: Array.isArray(parsed.triggerExamples) ? parsed.triggerExamples.slice(0, 5).map(String) : [],
+        tools: Array.isArray(parsed.tools) ? parsed.tools.filter((t: string) => ["isearch", "web_fetch"].includes(t)) : [],
+        matchMode: parsed.matchMode === "llm" ? "llm" : "keyword",
+      });
+      return;
+    } catch (err: any) {
+      console.error("[iSkills2] LLM generate failed, falling back to heuristic:", err.message);
+    }
+  }
+
+  // Heuristic fallback when no API key or LLM call fails.
+  const p = prompt.trim().toLowerCase();
   const stopWords = new Set(["a","an","the","to","for","that","and","or","with","using","which","when","i","want","need","create","make","build","skill","help","me"]);
   const words = prompt.trim().split(/\s+/).filter((w: string) => !stopWords.has(w.toLowerCase()) && w.length > 2);
   const rawName = words.slice(0, 4).join(" ");
   const name = rawName.charAt(0).toUpperCase() + rawName.slice(1);
-
-  // Generate trigger examples by extracting key noun phrases
   const triggerExamples: string[] = [];
   const keyPhrases = prompt.match(/[a-zA-Z]{4,}/g) ?? [];
   const filtered = [...new Set(keyPhrases.filter((w: string) => !stopWords.has(w.toLowerCase())))].slice(0, 3);
   if (filtered.length >= 2) triggerExamples.push(filtered.slice(0, 2).join(" "));
   if (filtered.length >= 3) triggerExamples.push(filtered.slice(1, 3).join(" "));
   if (prompt.length < 60) triggerExamples.push(prompt.trim());
-
   const instructions = [
     `You are a specialist assistant. The user has activated this skill because their message relates to: ${prompt.trim()}.`,
-    ``,
-    `When this skill is triggered:`,
-    `1. Carefully read the user's message in full.`,
+    "",
+    "When this skill is triggered:",
+    "1. Carefully read the user's message in full.",
     `2. Apply domain expertise relevant to: ${prompt.trim()}.`,
-    `3. Structure your response clearly with relevant sections.`,
-    `4. Be concise, accurate, and immediately useful.`,
-    `5. If information is missing, ask a clarifying question rather than guessing.`,
-    `6. Never fabricate facts — state clearly when you are uncertain.`,
+    "3. Structure your response clearly with relevant sections.",
+    "4. Be concise, accurate, and immediately useful.",
+    "5. If information is missing, ask a clarifying question rather than guessing.",
+    "6. Never fabricate facts — state clearly when you are uncertain.",
   ].join("\n");
-
   res.json({
     name: name || "New Skill",
     description: prompt.trim().length > 80 ? prompt.trim().slice(0, 77) + "..." : prompt.trim(),
     instructions,
     triggerExamples: [...new Set(triggerExamples)].slice(0, 3),
+    tools: ["isearch"],
+    matchMode: "keyword",
   });
 });
 
@@ -303,7 +496,7 @@ router.get("/skills/:id", async (req, res) => {
 
 router.patch("/skills/:id", async (req, res) => {
   const updates: Record<string, any> = {};
-  const allowed = ["name","description","instructions","tool","enabled","isearch","priority","triggerExamples"] as const;
+  const allowed = ["name","description","instructions","tool","enabled","isearch","tools","matchMode","priority","triggerExamples"] as const;
   for (const key of allowed) {
     if (req.body[key] !== undefined) updates[key] = req.body[key];
   }
@@ -312,14 +505,21 @@ router.patch("/skills/:id", async (req, res) => {
   const colMap: Record<string, string> = {
     triggerExamples: "trigger_examples",
     name: "name", description: "description", instructions: "instructions",
-    tool: "tool", enabled: "enabled", isearch: "isearch", priority: "priority",
+    tool: "tool", enabled: "enabled", isearch: "isearch", tools: "tools", matchMode: "match_mode", priority: "priority",
   };
   const setClauses: string[] = [];
   const vals: any[] = [];
   let idx = 1;
   for (const [k, v] of Object.entries(updates)) {
     setClauses.push(`${colMap[k]} = $${idx++}`);
-    vals.push(v);
+    if (k === "tools") {
+      const normalized = normalizeTools(v) ?? [];
+      vals.push(JSON.stringify(normalized));
+    } else if (k === "matchMode") {
+      vals.push(v === "llm" ? "llm" : "keyword");
+    } else {
+      vals.push(v);
+    }
   }
   setClauses.push(`updated_at = NOW()`);
   vals.push(req.params.id, SHARED_USER_ID);
@@ -359,21 +559,41 @@ router.post("/skills/:id/test", async (req, res) => {
       [req.params.id, SHARED_USER_ID],
     );
     if (!rows[0]) { res.status(404).json({ error: "Skill not found" }); return; }
-    const skill = rows[0];
-    const score = scoreMatch(message, skill);
-    const wouldTrigger = score >= 0.15;
+    const skill = rowToSkill(rows[0]);
+
+    let wouldTrigger = false;
+    let triggerScore = 0;
+    let reason = "No match";
+
+    if (skill.matchMode === "llm" && hasLlmKey) {
+      const llm = await llmMatch(message, [rows[0]]);
+      if (llm && llm.skillId === skill.id) {
+        wouldTrigger = llm.confidence >= 0.5;
+        triggerScore = llm.confidence;
+        reason = llm.reason;
+      }
+    } else {
+      const score = scoreMatch(message, rows[0]);
+      triggerScore = score;
+      wouldTrigger = score >= 0.15;
+      reason = wouldTrigger
+        ? `Matched "${skill.name}" with ${Math.round(score * 100)}% keyword overlap`
+        : `The trigger score (${Math.round(score * 100)}%) is below the 15% threshold. Try adding more specific keywords to the Activation Trigger or Example Messages fields that match this type of input.`;
+    }
+
     const injectedPrompt = [
       `[Skill: ${skill.name}]`,
-      ``,
+      "",
       skill.instructions,
-      ``,
+      "",
       `User message: ${message}`,
     ].join("\n");
+
     const sampleResponse = wouldTrigger
       ? `✓ This skill would activate.\n\nThe agent would receive your instructions injected into the context before replying. With the "${skill.name}" skill active, responses will follow your specified instructions above.`
-      : `✗ This skill would NOT trigger for this message.\n\nThe trigger score (${Math.round(score * 100)}%) is below the 15% threshold. Try adding more specific keywords to the Activation Trigger or Example Messages fields that match this type of input.`;
+      : `✗ This skill would NOT trigger for this message.\n\n${reason}`;
 
-    res.json({ wouldTrigger, triggerScore: Math.round(score * 100) / 100, injectedPrompt, sampleResponse });
+    res.json({ wouldTrigger, triggerScore: Math.round(triggerScore * 100) / 100, injectedPrompt, sampleResponse, reason, matchMode: skill.matchMode });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

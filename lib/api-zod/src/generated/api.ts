@@ -83,6 +83,8 @@ export const ListSkillsResponseItem = zod.object({
   "tool": zod.string().nullable(),
   "enabled": zod.boolean(),
   "isearch": zod.boolean(),
+  "tools": zod.array(zod.string()),
+  "matchMode": zod.enum(['keyword', 'llm']),
   "priority": zod.number(),
   "triggerExamples": zod.array(zod.string()),
   "usageCount": zod.number(),
@@ -108,6 +110,8 @@ export const CreateSkillBody = zod.object({
   "tool": zod.string().optional(),
   "enabled": zod.boolean().optional(),
   "isearch": zod.boolean().optional(),
+  "tools": zod.array(zod.string()).optional(),
+  "matchMode": zod.enum(['keyword', 'llm']).optional(),
   "priority": zod.number().optional(),
   "triggerExamples": zod.array(zod.string()).optional()
 })
@@ -121,6 +125,8 @@ export const CreateSkillResponse = zod.object({
   "tool": zod.string().nullable(),
   "enabled": zod.boolean(),
   "isearch": zod.boolean(),
+  "tools": zod.array(zod.string()),
+  "matchMode": zod.enum(['keyword', 'llm']),
   "priority": zod.number(),
   "triggerExamples": zod.array(zod.string()),
   "usageCount": zod.number(),
@@ -149,6 +155,8 @@ export const MatchSkillResponse = zod.object({
   "tool": zod.string().nullable(),
   "enabled": zod.boolean(),
   "isearch": zod.boolean(),
+  "tools": zod.array(zod.string()),
+  "matchMode": zod.enum(['keyword', 'llm']),
   "priority": zod.number(),
   "triggerExamples": zod.array(zod.string()),
   "usageCount": zod.number(),
@@ -158,7 +166,19 @@ export const MatchSkillResponse = zod.object({
 }).optional(),
   "reason": zod.string().optional(),
   "needsSearch": zod.boolean().optional(),
-  "searchQuery": zod.string().optional()
+  "searchQuery": zod.string().optional(),
+  "searchResults": zod.array(zod.object({
+  "title": zod.string(),
+  "url": zod.string(),
+  "snippet": zod.string()
+})).optional(),
+  "toolResults": zod.array(zod.object({
+  "type": zod.string(),
+  "status": zod.string(),
+  "output": zod.object({
+
+}).passthrough()
+})).optional()
 })
 
 
@@ -173,7 +193,9 @@ export const GenerateSkillResponse = zod.object({
   "name": zod.string(),
   "description": zod.string(),
   "instructions": zod.string(),
-  "triggerExamples": zod.array(zod.string())
+  "triggerExamples": zod.array(zod.string()),
+  "tools": zod.array(zod.string()).optional(),
+  "matchMode": zod.enum(['keyword', 'llm']).optional()
 })
 
 
@@ -193,6 +215,8 @@ export const GetSkillResponse = zod.object({
   "tool": zod.string().nullable(),
   "enabled": zod.boolean(),
   "isearch": zod.boolean(),
+  "tools": zod.array(zod.string()),
+  "matchMode": zod.enum(['keyword', 'llm']),
   "priority": zod.number(),
   "triggerExamples": zod.array(zod.string()),
   "usageCount": zod.number(),
@@ -219,6 +243,8 @@ export const UpdateSkillBody = zod.object({
   "tool": zod.string().optional(),
   "enabled": zod.boolean().optional(),
   "isearch": zod.boolean().optional(),
+  "tools": zod.array(zod.string()).optional(),
+  "matchMode": zod.enum(['keyword', 'llm']).optional(),
   "priority": zod.number().optional(),
   "triggerExamples": zod.array(zod.string()).optional()
 })
@@ -232,6 +258,8 @@ export const UpdateSkillResponse = zod.object({
   "tool": zod.string().nullable(),
   "enabled": zod.boolean(),
   "isearch": zod.boolean(),
+  "tools": zod.array(zod.string()),
+  "matchMode": zod.enum(['keyword', 'llm']),
   "priority": zod.number(),
   "triggerExamples": zod.array(zod.string()),
   "usageCount": zod.number(),
@@ -276,6 +304,8 @@ export const TestSkillResponse = zod.object({
   "tool": zod.string().nullable(),
   "enabled": zod.boolean(),
   "isearch": zod.boolean(),
+  "tools": zod.array(zod.string()),
+  "matchMode": zod.enum(['keyword', 'llm']),
   "priority": zod.number(),
   "triggerExamples": zod.array(zod.string()),
   "usageCount": zod.number(),
@@ -285,7 +315,19 @@ export const TestSkillResponse = zod.object({
 }).optional(),
   "reason": zod.string().optional(),
   "needsSearch": zod.boolean().optional(),
-  "searchQuery": zod.string().optional()
+  "searchQuery": zod.string().optional(),
+  "searchResults": zod.array(zod.object({
+  "title": zod.string(),
+  "url": zod.string(),
+  "snippet": zod.string()
+})).optional(),
+  "toolResults": zod.array(zod.object({
+  "type": zod.string(),
+  "status": zod.string(),
+  "output": zod.object({
+
+}).passthrough()
+})).optional()
 })
 
 

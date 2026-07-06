@@ -5,7 +5,9 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SearchResult } from './searchResult';
 import type { Skill } from './skill';
+import type { ToolResult } from './toolResult';
 
 export interface MatchResult {
   matched: boolean;
@@ -14,4 +16,6 @@ export interface MatchResult {
   reason?: string;
   needsSearch?: boolean;
   searchQuery?: string;
+  searchResults?: SearchResult[];
+  toolResults?: ToolResult[];
 }

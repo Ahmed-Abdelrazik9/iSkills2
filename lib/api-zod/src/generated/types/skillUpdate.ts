@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SkillUpdateMatchMode } from './skillUpdateMatchMode';
 
 export interface SkillUpdate {
   /** @minLength 1 */
@@ -14,6 +15,8 @@ export interface SkillUpdate {
   tool?: string;
   enabled?: boolean;
   isearch?: boolean;
+  tools?: string[];
+  matchMode?: SkillUpdateMatchMode;
   priority?: number;
   triggerExamples?: string[];
 }

@@ -57,6 +57,13 @@ export async function initialize() {
     ADD COLUMN IF NOT EXISTS isearch BOOLEAN NOT NULL DEFAULT false
   `);
 
+  // Add multi-tool and LLM matching columns (migration-safe).
+  await pool.query(`
+    ALTER TABLE iskills2_skills
+    ADD COLUMN IF NOT EXISTS tools TEXT,
+    ADD COLUMN IF NOT EXISTS match_mode TEXT NOT NULL DEFAULT 'keyword'
+  `);
+
   console.log("[iSkills2] Tables initialized");
 }
 

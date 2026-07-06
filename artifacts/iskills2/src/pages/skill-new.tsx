@@ -20,6 +20,8 @@ const skillSchema = z.object({
   instructions: z.string().min(1, "Instructions are required"),
   enabled: z.boolean().default(true),
   isearch: z.boolean().default(false),
+  tools: z.array(z.string()).default([]),
+  matchMode: z.enum(["keyword", "llm"]).default("llm"),
   priority: z.coerce.number().min(0).max(100).default(50),
   triggerExamples: z.array(z.object({ value: z.string().min(1, "Example cannot be empty") }))
 })
@@ -38,6 +40,8 @@ export default function SkillNew() {
       instructions: "",
       enabled: true,
       isearch: false,
+      tools: [],
+      matchMode: "llm",
       priority: 50,
       triggerExamples: [{ value: "" }]
     }
@@ -74,7 +78,8 @@ export default function SkillNew() {
   const onSubmit = (data: z.infer<typeof skillSchema>) => {
     const payload = {
       ...data,
-      triggerExamples: data.triggerExamples.map(t => t.value)
+      triggerExamples: data.triggerExamples.map(t => t.value),
+      tools: data.tools.length ? data.tools : (data.isearch ? ["isearch"] : [])
     }
     
     createSkill.mutate({ data: payload }, {
@@ -275,6 +280,74 @@ export default function SkillNew() {
                         />
                       </FormControl>
                     </div>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="bg-card border border-border p-6 rounded-3xl shadow-sm space-y-4">
+              <FormField
+                control={form.control}
+                name="tools"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Tool Chain</FormLabel>
+                      <FormDescription>Select tools to run when this skill matches.</FormDescription>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {[
+                        { key: "isearch", label: "iSearch", icon: Globe },
+                        { key: "web_fetch", label: "Web Fetch", icon: () => null },
+                      ].map(({ key, label, icon: Icon }) => (
+                        <label
+                          key={key}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors ${
+                            field.value?.includes(key)
+                              ? "border-amber-500/50 bg-amber-500/10 text-amber-700"
+                              : "border-border bg-background hover:bg-muted"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="sr-only"
+                            checked={field.value?.includes(key) || false}
+                            onChange={(e) => {
+                              const current = field.value || []
+                              const next = e.target.checked
+                                ? [...current, key]
+                                : current.filter((v) => v !== key)
+                              field.onChange(next)
+                              if (key === "isearch") {
+                                form.setValue("isearch", e.target.checked)
+                              }
+                            }}
+                          />
+                          <Icon className="h-4 w-4" />
+                          <span className="text-sm font-medium">{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="matchMode"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between w-full space-y-0 pt-2 border-t border-border">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">LLM Intent Matching</FormLabel>
+                      <FormDescription>Use an LLM to decide when this skill activates instead of keyword overlap.</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value === "llm"}
+                        onCheckedChange={(checked) => field.onChange(checked ? "llm" : "keyword")}
+                      />
+                    </FormControl>
                   </FormItem>
                 )}
               />
