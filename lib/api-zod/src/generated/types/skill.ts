@@ -15,6 +15,7 @@ export interface Skill {
   /** @nullable */
   tool: string | null;
   enabled: boolean;
+  isearch: boolean;
   priority: number;
   triggerExamples: string[];
   usageCount: number;

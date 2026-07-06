@@ -12,4 +12,6 @@ export interface MatchResult {
   confidence: number;
   skill?: Skill;
   reason?: string;
+  needsSearch?: boolean;
+  searchQuery?: string;
 }

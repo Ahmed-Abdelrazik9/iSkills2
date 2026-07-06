@@ -82,6 +82,7 @@ export const ListSkillsResponseItem = zod.object({
   "instructions": zod.string(),
   "tool": zod.string().nullable(),
   "enabled": zod.boolean(),
+  "isearch": zod.boolean(),
   "priority": zod.number(),
   "triggerExamples": zod.array(zod.string()),
   "usageCount": zod.number(),
@@ -106,6 +107,7 @@ export const CreateSkillBody = zod.object({
   "instructions": zod.string().min(1),
   "tool": zod.string().optional(),
   "enabled": zod.boolean().optional(),
+  "isearch": zod.boolean().optional(),
   "priority": zod.number().optional(),
   "triggerExamples": zod.array(zod.string()).optional()
 })
@@ -118,6 +120,7 @@ export const CreateSkillResponse = zod.object({
   "instructions": zod.string(),
   "tool": zod.string().nullable(),
   "enabled": zod.boolean(),
+  "isearch": zod.boolean(),
   "priority": zod.number(),
   "triggerExamples": zod.array(zod.string()),
   "usageCount": zod.number(),
@@ -145,6 +148,7 @@ export const MatchSkillResponse = zod.object({
   "instructions": zod.string(),
   "tool": zod.string().nullable(),
   "enabled": zod.boolean(),
+  "isearch": zod.boolean(),
   "priority": zod.number(),
   "triggerExamples": zod.array(zod.string()),
   "usageCount": zod.number(),
@@ -152,7 +156,9 @@ export const MatchSkillResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }).optional(),
-  "reason": zod.string().optional()
+  "reason": zod.string().optional(),
+  "needsSearch": zod.boolean().optional(),
+  "searchQuery": zod.string().optional()
 })
 
 
@@ -186,6 +192,7 @@ export const GetSkillResponse = zod.object({
   "instructions": zod.string(),
   "tool": zod.string().nullable(),
   "enabled": zod.boolean(),
+  "isearch": zod.boolean(),
   "priority": zod.number(),
   "triggerExamples": zod.array(zod.string()),
   "usageCount": zod.number(),
@@ -211,6 +218,7 @@ export const UpdateSkillBody = zod.object({
   "instructions": zod.string().optional(),
   "tool": zod.string().optional(),
   "enabled": zod.boolean().optional(),
+  "isearch": zod.boolean().optional(),
   "priority": zod.number().optional(),
   "triggerExamples": zod.array(zod.string()).optional()
 })
@@ -223,6 +231,7 @@ export const UpdateSkillResponse = zod.object({
   "instructions": zod.string(),
   "tool": zod.string().nullable(),
   "enabled": zod.boolean(),
+  "isearch": zod.boolean(),
   "priority": zod.number(),
   "triggerExamples": zod.array(zod.string()),
   "usageCount": zod.number(),
@@ -256,10 +265,27 @@ export const TestSkillBody = zod.object({
 })
 
 export const TestSkillResponse = zod.object({
-  "wouldTrigger": zod.boolean(),
-  "triggerScore": zod.number().optional(),
-  "injectedPrompt": zod.string(),
-  "sampleResponse": zod.string()
+  "matched": zod.boolean(),
+  "confidence": zod.number(),
+  "skill": zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "instructions": zod.string(),
+  "tool": zod.string().nullable(),
+  "enabled": zod.boolean(),
+  "isearch": zod.boolean(),
+  "priority": zod.number(),
+  "triggerExamples": zod.array(zod.string()),
+  "usageCount": zod.number(),
+  "lastUsedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).optional(),
+  "reason": zod.string().optional(),
+  "needsSearch": zod.boolean().optional(),
+  "searchQuery": zod.string().optional()
 })
 
 

@@ -52,6 +52,7 @@ interface Skill {
   description: string;
   instructions: string;
   enabled: boolean;
+  isearch: boolean;
   priority: number;
   triggerExamples: string[];
   usageCount: number;
@@ -70,6 +71,7 @@ interface SkillFormData {
   description: string;
   instructions: string;
   enabled: boolean;
+  isearch: boolean;
   priority: number;
   triggerExamples: string[];
 }
@@ -442,6 +444,7 @@ function SkillFormView({
         description: form.description,
         instructions: form.instructions,
         enabled: form.enabled,
+        isearch: form.isearch,
         priority: form.priority,
         triggerExamples: form.triggerExamples.filter(Boolean),
       });
@@ -607,6 +610,13 @@ function SkillFormView({
             </div>
             <Toggle checked={form.enabled} onChange={set('enabled')} />
           </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-700">Enable iSearch</p>
+              <p className="text-xs text-slate-400">Auto-request web search when this skill is matched</p>
+            </div>
+            <Toggle checked={form.isearch} onChange={set('isearch')} />
+          </div>
           <div>
             <div className="flex items-center justify-between mb-1">
               <p className="text-sm font-medium text-slate-700">
@@ -723,6 +733,12 @@ function SkillFormView({
                   <p className="text-sm font-medium text-slate-800">{testResult.skill.name}</p>
                   <p className="text-xs text-slate-500">{testResult.reason}</p>
                 </div>
+                {testResult.needsSearch && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                    <p className="text-sm font-medium text-blue-800">iSearch triggered</p>
+                    <p className="text-xs text-blue-600 font-mono mt-1">{testResult.searchQuery}</p>
+                  </div>
+                )}
                 <div>
                   <FieldLabel>Instructions</FieldLabel>
                   <div className="mt-1 bg-[#F5F1EB] p-4 rounded-xl text-xs font-mono whitespace-pre-wrap text-slate-600 max-h-40 overflow-y-auto border border-[#DDD8CF]">
@@ -791,6 +807,7 @@ function EditSkillView({
         description: skill.description,
         instructions: skill.instructions,
         enabled: skill.enabled,
+        isearch: skill.isearch,
         priority: skill.priority,
         triggerExamples: skill.triggerExamples.length ? skill.triggerExamples : [''],
       }}
@@ -872,6 +889,7 @@ export default function ISkills2App() {
             description: '',
             instructions: '',
             enabled: true,
+            isearch: false,
             priority: 50,
             triggerExamples: [''],
           }}

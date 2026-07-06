@@ -19,6 +19,7 @@ const skillSchema = z.object({
   description: z.string().min(1, "Description is required"),
   instructions: z.string().min(1, "Instructions are required"),
   enabled: z.boolean().default(true),
+  isearch: z.boolean().default(false),
   priority: z.coerce.number().min(0).max(100).default(50),
   triggerExamples: z.array(z.object({ value: z.string().min(1, "Example cannot be empty") }))
 })
@@ -36,6 +37,7 @@ export default function SkillNew() {
       description: "",
       instructions: "",
       enabled: true,
+      isearch: false,
       priority: 50,
       triggerExamples: [{ value: "" }]
     }
@@ -242,6 +244,27 @@ export default function SkillNew() {
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">Enable Skill</FormLabel>
                       <FormDescription>Active skills will be evaluated against new messages.</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="flex items-center justify-between bg-card border border-border p-6 rounded-3xl shadow-sm">
+              <FormField
+                control={form.control}
+                name="isearch"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between w-full space-y-0">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Enable iSearch</FormLabel>
+                      <FormDescription>When active, this skill will automatically request web search for current information.</FormDescription>
                     </div>
                     <FormControl>
                       <Switch

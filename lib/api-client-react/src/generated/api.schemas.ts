@@ -43,6 +43,7 @@ export interface Skill {
   /** @nullable */
   tool: string | null;
   enabled: boolean;
+  isearch: boolean;
   priority: number;
   triggerExamples: string[];
   usageCount: number;
@@ -61,6 +62,7 @@ export interface SkillInput {
   instructions: string;
   tool?: string;
   enabled?: boolean;
+  isearch?: boolean;
   priority?: number;
   triggerExamples?: string[];
 }
@@ -72,6 +74,7 @@ export interface SkillUpdate {
   instructions?: string;
   tool?: string;
   enabled?: boolean;
+  isearch?: boolean;
   priority?: number;
   triggerExamples?: string[];
 }
@@ -85,6 +88,8 @@ export interface MatchResult {
   confidence: number;
   skill?: Skill;
   reason?: string;
+  needsSearch?: boolean;
+  searchQuery?: string;
 }
 
 export interface GenerateInput {
@@ -103,10 +108,12 @@ export interface TestInput {
 }
 
 export interface TestResult {
-  wouldTrigger: boolean;
-  triggerScore?: number;
-  injectedPrompt: string;
-  sampleResponse: string;
+  matched: boolean;
+  confidence: number;
+  skill?: Skill;
+  reason?: string;
+  needsSearch?: boolean;
+  searchQuery?: string;
 }
 
 export interface SkillStat {

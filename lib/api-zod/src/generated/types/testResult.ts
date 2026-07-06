@@ -5,10 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { Skill } from './skill';
 
 export interface TestResult {
-  wouldTrigger: boolean;
-  triggerScore?: number;
-  injectedPrompt: string;
-  sampleResponse: string;
+  matched: boolean;
+  confidence: number;
+  skill?: Skill;
+  reason?: string;
+  needsSearch?: boolean;
+  searchQuery?: string;
 }

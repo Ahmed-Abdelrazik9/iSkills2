@@ -15,6 +15,7 @@ export interface SkillInput {
   instructions: string;
   tool?: string;
   enabled?: boolean;
+  isearch?: boolean;
   priority?: number;
   triggerExamples?: string[];
 }

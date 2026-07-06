@@ -466,7 +466,7 @@ components:
 
     Skill:
       type: object
-      required: [id, userId, name, description, instructions, tool, enabled, priority, triggerExamples, usageCount, createdAt, updatedAt]
+      required: [id, userId, name, description, instructions, tool, enabled, isearch, priority, triggerExamples, usageCount, createdAt, updatedAt]
       properties:
         id:
           type: string
@@ -481,6 +481,8 @@ components:
         tool:
           type: ["string", "null"]
         enabled:
+          type: boolean
+        isearch:
           type: boolean
         priority:
           type: integer
@@ -517,6 +519,8 @@ components:
           type: string
         enabled:
           type: boolean
+        isearch:
+          type: boolean
         priority:
           type: integer
         triggerExamples:
@@ -537,6 +541,8 @@ components:
         tool:
           type: string
         enabled:
+          type: boolean
+        isearch:
           type: boolean
         priority:
           type: integer
@@ -563,6 +569,10 @@ components:
         skill:
           $ref: "#/components/schemas/Skill"
         reason:
+          type: string
+        needsSearch:
+          type: boolean
+        searchQuery:
           type: string
 
     GenerateInput:
@@ -596,15 +606,19 @@ components:
 
     TestResult:
       type: object
-      required: [wouldTrigger, injectedPrompt, sampleResponse]
+      required: [matched, confidence]
       properties:
-        wouldTrigger:
+        matched:
           type: boolean
-        triggerScore:
+        confidence:
           type: number
-        injectedPrompt:
+        skill:
+          $ref: "#/components/schemas/Skill"
+        reason:
           type: string
-        sampleResponse:
+        needsSearch:
+          type: boolean
+        searchQuery:
           type: string
 
     Stats:
