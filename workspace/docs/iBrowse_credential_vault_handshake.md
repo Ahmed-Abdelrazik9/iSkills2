@@ -13,8 +13,11 @@ Fixed iBrowse so it can retrieve credentials saved in the iCredentials / iAgent 
 ## Why
 Previously, credentials and integrations could be saved without a real userId and ended up under the placeholder `default-user` row. The iBrowse agent was looking for credentials under the authenticated user's scope, so it never found them. This change restores retrieval for existing legacy vault entries while ensuring new saves are correctly scoped.
 
+## Commit
+- `ce27e373a58b36253a8cdce9ceb669bd5958a2c0`
+
 ## Verification
-1. Pull the latest PR commit.
+1. Pull the latest PR commit (`ce27e373a58b36253a8cdce9ceb669bd5958a2c0`).
 2. Build and redeploy the API server.
 3. Open the iAgent / iCredentials dashboard and confirm saved credentials/integrations are visible.
 4. Start an iBrowse conversation and ask it to navigate to a site for which credentials are saved.
