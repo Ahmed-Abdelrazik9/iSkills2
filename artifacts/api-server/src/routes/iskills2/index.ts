@@ -17,6 +17,7 @@ function rowToSkill(r: any) {
     instructions: r.instructions,
     tool: r.tool ?? null,
     enabled: r.enabled,
+    isearch: r.isearch ?? false,
     priority: r.priority,
     triggerExamples: r.trigger_examples ?? [],
     usageCount: r.usage_count,
@@ -24,6 +25,20 @@ function rowToSkill(r: any) {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
+}
+
+function needsWebSearch(message: string): { needsSearch: boolean; searchQuery: string } {
+  const m = (message || "").toLowerCase();
+  const freshnessSignals = [
+    "today", "now", "current", "latest", "recent", "live", "right now", "this morning",
+    "this afternoon", "tonight", "this week", "this month", "this year", "updated",
+    "result", "results", "score", "match", "game", "weather", "news", "price", "stock",
+    "who won", "who is winning", "did they win", "election", "covid", "bitcoin", "rate",
+  ];
+  const hasSignal = freshnessSignals.some((s) => m.includes(s));
+  const hasTimePattern = /\b(202[0-9]|today|yesterday|tomorrow|now)\b/.test(m);
+  const needsSearch = hasSignal || hasTimePattern;
+  return { needsSearch, searchQuery: needsSearch ? message.trim() : "" };
 }
 
 function scoreMatch(message: string, skill: any): number {
@@ -123,15 +138,15 @@ router.get("/skills", async (req, res) => {
 });
 
 router.post("/skills", async (req, res) => {
-  const { name, description, instructions, tool, enabled, priority, triggerExamples } = req.body ?? {};
+  const { name, description, instructions, tool, enabled, isearch, priority, triggerExamples } = req.body ?? {};
   if (!name?.trim()) { res.status(400).json({ error: "name is required" }); return; }
   if (!description?.trim()) { res.status(400).json({ error: "description is required" }); return; }
   if (!instructions?.trim()) { res.status(400).json({ error: "instructions is required" }); return; }
   try {
     const { rows } = await pool.query(
       `INSERT INTO iskills2_skills
-        (user_id, name, description, instructions, tool, enabled, priority, trigger_examples)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        (user_id, name, description, instructions, tool, enabled, isearch, priority, trigger_examples)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        RETURNING *`,
       [
         SHARED_USER_ID,
@@ -140,6 +155,7 @@ router.post("/skills", async (req, res) => {
         instructions.trim(),
         tool || null,
         enabled !== false,
+        isearch === true,
         priority ?? 0,
         triggerExamples ?? [],
       ],
@@ -169,14 +185,17 @@ router.post("/skills/match", async (req, res) => {
     const best = scored[0];
     const threshold = 0.15;
     if (best.score >= threshold) {
+      const skill = rowToSkill(best.skill);
+      const searchSignal = skill.isearch ? needsWebSearch(message) : { needsSearch: false, searchQuery: "" };
       res.json({
         matched: true,
         confidence: Math.min(best.score * 2, 1),
-        skill: rowToSkill(best.skill),
+        skill,
         reason: `Matched "${best.skill.name}" with ${Math.round(best.score * 100)}% keyword overlap`,
+        ...searchSignal,
       });
     } else {
-      res.json({ matched: false, confidence: best.score, skill: null, reason: "No skill matched the message" });
+      res.json({ matched: false, confidence: best.score, skill: null, reason: "No skill matched the message", needsSearch: false, searchQuery: "" });
     }
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -238,7 +257,7 @@ router.get("/skills/:id", async (req, res) => {
 
 router.patch("/skills/:id", async (req, res) => {
   const updates: Record<string, any> = {};
-  const allowed = ["name","description","instructions","tool","enabled","priority","triggerExamples"] as const;
+  const allowed = ["name","description","instructions","tool","enabled","isearch","priority","triggerExamples"] as const;
   for (const key of allowed) {
     if (req.body[key] !== undefined) updates[key] = req.body[key];
   }
@@ -247,7 +266,7 @@ router.patch("/skills/:id", async (req, res) => {
   const colMap: Record<string, string> = {
     triggerExamples: "trigger_examples",
     name: "name", description: "description", instructions: "instructions",
-    tool: "tool", enabled: "enabled", priority: "priority",
+    tool: "tool", enabled: "enabled", isearch: "isearch", priority: "priority",
   };
   const setClauses: string[] = [];
   const vals: any[] = [];
