@@ -154,6 +154,18 @@ IMPORTANT: Use the \`save_neural_memory\` tool whenever you learn a new signific
           .join('\n')
       : 'No integrations connected yet.';
 
+  const skills = await storage.getSkills(userId);
+  const enabledSkills = skills.filter((s) => s.enabled);
+  const skillsSummary =
+    enabledSkills.length > 0
+      ? enabledSkills
+          .map(
+            (s) =>
+              `#### SKILL: ${s.name}\nDESCRIPTION: ${s.description}\nINSTRUCTIONS: ${s.instructions}${s.tool ? `\nAUTO-TRIGGER TOOL: ${s.tool}` : ''}`,
+          )
+          .join('\n\n')
+      : 'No custom skills trained yet.';
+
   return `CURRENT DATE AND TIME: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}. Use this as your authoritative reference for "today", "this week", "most recent", "latest", or any time-relative queries.
 
 # SPEED_OPTIMIZATION_PROTOCOL:
@@ -278,6 +290,10 @@ ${integrationsSummary}
 
 ## SAVED CREDENTIALS (from iAgent Dashboard):
 ${credList}
+
+## CUSTOM AGENT SKILLS:
+These are specialized instructions or workflows defined by the user. If the user request matches the description of a skill, follow the skill instructions exactly:
+${skillsSummary}
 
 ## CREDENTIALS RETRIEVAL TOOL:
 - **get_credentials** - Call this tool to retrieve saved login credentials for any service. Pass the service name or website URL. This retrieves credentials saved in the iAgent dashboard.
@@ -2021,6 +2037,23 @@ reference the content in this buffer precisely. Do NOT hallucinate content not p
 
   // 4c. Credentials for system prompt (user-scoped)
   let systemPrompt = await getSystemPrompt(userId, persona);
+
+  // ⭐ SKILL AUTO-TRIGGER: if an enabled skill has tool='search_web', run web search upfront.
+  const skills = await storage.getSkills(userId);
+  const enabledSearchSkills = skills.filter((s) => s.enabled && s.tool === 'search_web');
+  if (enabledSearchSkills.length > 0) {
+    const searchQuery =
+      enabledSearchSkills.map((s) => s.name).join(' | ') + ' | ' + userContent;
+    console.log(`[inexus-Agent] Skill auto-trigger: search_web for query "${searchQuery}"`);
+    if (ws && ws.send) {
+      ws.send(JSON.stringify({ type: 'tool_start', toolName: 'search_web', content: 'Skill auto-trigger: web search' }));
+    }
+    const skillWebSearchResult = await searchWeb(searchQuery.substring(0, 500));
+    if (ws && ws.send) {
+      ws.send(JSON.stringify({ type: 'tool_result', toolName: 'search_web', content: skillWebSearchResult }));
+    }
+    systemPrompt = skillWebSearchResult + '\n\n' + systemPrompt;
+  }
 
   // 5. Inject full contextual persistence into the system layer
   if (fileContext) {

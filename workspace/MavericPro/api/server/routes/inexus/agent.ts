@@ -4091,7 +4091,23 @@ export async function agentChat(
       : '';
 
   const baseSystemPrompt = await getSystemPrompt(userId, personaId);
-  const systemPrompt = fileContext ? `${fileContext}\n\n${baseSystemPrompt}` : baseSystemPrompt;
+
+  // ⭐ SKILL AUTO-TRIGGER: if an enabled skill has tool='search_web', run web search upfront.
+  const enabledSearchSkills = enabledSkills.filter(
+    (s: any) => s.tool === 'search_web' && s.enabled !== false,
+  );
+  let skillWebSearchResult = '';
+  if (enabledSearchSkills.length > 0) {
+    const searchQuery = enabledSearchSkills.map((s: any) => s.name).join(' | ') + ' | ' + userContent;
+    console.log(`[inexus-Agent] Skill auto-trigger: search_web for query "${searchQuery}"`);
+    ws.send(JSON.stringify({ type: 'tool_start', toolName: 'search_web', content: 'Skill auto-trigger: web search' }));
+    skillWebSearchResult = await searchWeb(searchQuery.substring(0, 500));
+    ws.send(JSON.stringify({ type: 'tool_result', toolName: 'search_web', content: skillWebSearchResult }));
+  }
+
+  const systemPrompt = fileContext
+    ? `${fileContext}\n\n${skillWebSearchResult ? skillWebSearchResult + '\n\n' : ''}${baseSystemPrompt}`
+    : `${skillWebSearchResult ? skillWebSearchResult + '\n\n' : ''}${baseSystemPrompt}`;
 
   console.log(
     `[inexus-Agent] 🧠 Loading memories for user ${userId}, persona: ${personaId || 'default'}`,

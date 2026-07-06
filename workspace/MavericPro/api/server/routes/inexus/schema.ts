@@ -145,6 +145,7 @@ export const skills = pgTable('inexus_skills', {
   name: text('name').notNull(),
   description: text('description').notNull(),
   instructions: text('instructions').notNull(),
+  tool: text('tool').default('none'), // auto-trigger tool: 'none' | 'search_web' | 'search_images' | etc.
   enabled: boolean('enabled').notNull().default(true),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

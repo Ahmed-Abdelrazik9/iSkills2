@@ -225,6 +225,7 @@ export class DatabaseStorage implements IStorage {
         ALTER TABLE inexus_skills ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT '';
         ALTER TABLE inexus_skills ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT '';
         ALTER TABLE inexus_skills ADD COLUMN IF NOT EXISTS instructions TEXT NOT NULL DEFAULT '';
+        ALTER TABLE inexus_skills ADD COLUMN IF NOT EXISTS tool TEXT DEFAULT 'none';
         ALTER TABLE inexus_skills ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;
         ALTER TABLE inexus_skills ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL;
       `);
