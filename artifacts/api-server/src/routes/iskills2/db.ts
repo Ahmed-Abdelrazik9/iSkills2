@@ -34,6 +34,7 @@ export async function initialize() {
       instructions TEXT NOT NULL DEFAULT '',
       tool TEXT,
       enabled BOOLEAN NOT NULL DEFAULT true,
+      isearch BOOLEAN NOT NULL DEFAULT false,
       priority INTEGER NOT NULL DEFAULT 0,
       trigger_examples TEXT[] NOT NULL DEFAULT '{}',
       usage_count INTEGER NOT NULL DEFAULT 0,
@@ -49,6 +50,12 @@ export async function initialize() {
      ON CONFLICT (id) DO NOTHING`,
     [SHARED_USER_ID, "shared@iskills2.local", "disabled"],
   );
+
+  // Add isearch column if it doesn't exist yet (migration-safe).
+  await pool.query(`
+    ALTER TABLE iskills2_skills
+    ADD COLUMN IF NOT EXISTS isearch BOOLEAN NOT NULL DEFAULT false
+  `);
 
   console.log("[iSkills2] Tables initialized");
 }
