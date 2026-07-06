@@ -1,11 +1,14 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import OpenAI from "openai";
+import dns from "node:dns";
+import { promisify } from "node:util";
 import { pool } from "./db";
 import { signToken } from "./auth";
 import { SHARED_USER_ID } from "./db";
 
 const router = Router();
+const dnsResolve4 = promisify(dns.resolve4);
 
 const hasLlmKey = !!(process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY);
 
@@ -114,16 +117,53 @@ async function searchWeb(query: string): Promise<{ title: string; url: string; s
   }
 }
 
+function isPrivateIp(ip: string): boolean {
+  const parts = ip.split(".").map(Number);
+  if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255)) return true;
+  const [a, b] = parts;
+  if (a === 10) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 127) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true;
+  return false;
+}
+
+async function isSafeUrl(url: string): Promise<boolean> {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    const hostname = parsed.hostname.toLowerCase();
+    if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname === "127.0.0.1") return false;
+    if (hostname === "metadata.google.internal" || hostname.endsWith(".metadata.google.internal")) return false;
+    const ips = await dnsResolve4(hostname);
+    if (!ips.length) return false;
+    return !ips.some(isPrivateIp);
+  } catch {
+    return false;
+  }
+}
+
+async function extractUrls(text: string): Promise<string[]> {
+  const urlRegex = /https?:\/\/[^\s\)\]\>"]+/gi;
+  const urls = [...new Set((text.match(urlRegex) || []))];
+  const safe = await Promise.all(urls.map(async (url) => ({ url, safe: await isSafeUrl(url) })));
+  return safe.filter((x) => x.safe).map((x) => x.url);
+}
+
 async function fetchUrl(url: string): Promise<{ title: string; url: string; snippet: string } | null> {
+  if (!(await isSafeUrl(url))) return null;
   try {
     const res = await fetch(url, {
+      redirect: "manual",
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
       },
     });
-    if (!res.ok) return null;
+    if (!res.ok || res.status >= 300) return null;
     const html = await res.text();
     const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : url;
@@ -138,30 +178,6 @@ async function fetchUrl(url: string): Promise<{ title: string; url: string; snip
     console.error("[iSkills2] fetch URL failed:", err.message);
     return null;
   }
-}
-
-function isSafeUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
-    const hostname = parsed.hostname.toLowerCase();
-    if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname === "127.0.0.1") return false;
-    if (hostname.startsWith("169.254.") || hostname.startsWith("10.") || hostname.startsWith("192.168.")) return false;
-    if (hostname.startsWith("172.")) {
-      const second = Number(hostname.split(".")[1]);
-      if (second >= 16 && second <= 31) return false;
-    }
-    if (hostname === "metadata.google.internal" || hostname.endsWith(".metadata.google.internal")) return false;
-    if (hostname.includes("::") || hostname.startsWith("fc") || hostname.startsWith("fd")) return false;
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function extractUrls(text: string): string[] {
-  const urlRegex = /https?:\/\/[^\s\)\]\>"]+/gi;
-  return [...new Set((text.match(urlRegex) || []))].filter(isSafeUrl);
 }
 
 function needsWebSearch(message: string): { needsSearch: boolean; searchQuery: string } {
@@ -245,7 +261,7 @@ async function runTool(
       return { type: "isearch", status: "ok", output: { needsSearch, searchQuery, searchResults } };
     }
     case "web_fetch": {
-      const urls = extractUrls(message);
+      const urls = await extractUrls(message);
       if (!urls.length) {
         return { type: "web_fetch", status: "skipped", output: { urls: [], results: [] } };
       }
@@ -325,7 +341,7 @@ router.post("/auth/login", async (req, res) => {
 });
 
 router.get("/auth/me", async (req, res) => {
-  res.json({ id: SHARED_USER_ID, email: "shared@iskills2.local" });
+  res.json({ id: SHARED_USER_ID, email: "shared@iskills2.local", createdAt: "2024-01-01T00:00:00Z" });
 });
 
 // ── Skills ────────────────────────────────────────────────────────────────────

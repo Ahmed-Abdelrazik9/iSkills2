@@ -25483,7 +25483,7 @@ See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode de
 var require_connection_parameters = __commonJS({
   "../../node_modules/.pnpm/pg@8.22.0/node_modules/pg/lib/connection-parameters.js"(exports, module) {
     "use strict";
-    var dns = __require("dns");
+    var dns2 = __require("dns");
     var defaults3 = require_defaults();
     var parse = require_pg_connection_string().parse;
     var val = function(key, config, envVar) {
@@ -25619,7 +25619,7 @@ var require_connection_parameters = __commonJS({
         if (this.client_encoding) {
           params.push("client_encoding=" + quoteParamValue(this.client_encoding));
         }
-        dns.lookup(this.host, function(err, address) {
+        dns2.lookup(this.host, function(err, address) {
           if (err) return cb(err, null);
           params.push("hostaddr=" + quoteParamValue(address));
           return cb(null, params.join(" "));
@@ -28034,7 +28034,7 @@ var require_pg_pool = __commonJS({
     function throwOnDoubleRelease() {
       throw new Error("Release called on client which has already been released to the pool.");
     }
-    function promisify(Promise2, callback) {
+    function promisify2(Promise2, callback) {
       if (callback) {
         return { callback, result: void 0 };
       }
@@ -28172,7 +28172,7 @@ var require_pg_pool = __commonJS({
           const err = new Error("Cannot use a pool after calling end on the pool");
           return cb ? cb(err) : this.Promise.reject(err);
         }
-        const response = promisify(this.Promise, cb);
+        const response = promisify2(this.Promise, cb);
         const result = response.result;
         if (this._isFull() || this._idle.length) {
           if (this._idle.length) {
@@ -28357,7 +28357,7 @@ var require_pg_pool = __commonJS({
       }
       query(text, values, cb) {
         if (typeof text === "function") {
-          const response2 = promisify(this.Promise, text);
+          const response2 = promisify2(this.Promise, text);
           setImmediate(function() {
             return response2.callback(new Error("Passing a function as the first parameter to pool.query is not supported"));
           });
@@ -28367,7 +28367,7 @@ var require_pg_pool = __commonJS({
           cb = values;
           values = void 0;
         }
-        const response = promisify(this.Promise, cb);
+        const response = promisify2(this.Promise, cb);
         cb = response.callback;
         this.connect((err, client) => {
           if (err) {
@@ -28412,7 +28412,7 @@ var require_pg_pool = __commonJS({
           return cb ? cb(err) : this.Promise.reject(err);
         }
         this.ending = true;
-        const promised = promisify(this.Promise, cb);
+        const promised = promisify2(this.Promise, cb);
         this._endCallback = promised.callback;
         this._pulseQueue();
         return promised.result;
@@ -44581,6 +44581,10 @@ function isUndiciDispatcherVersionMismatchError(error) {
   return false;
 }
 
+// src/routes/iskills2/index.ts
+import dns from "node:dns";
+import { promisify } from "node:util";
+
 // ../../node_modules/.pnpm/pg@8.22.0/node_modules/pg/esm/index.mjs
 var import_lib = __toESM(require_lib4(), 1);
 var Client = import_lib.default.Client;
@@ -44660,6 +44664,7 @@ function signToken(userId) {
 
 // src/routes/iskills2/index.ts
 var router = (0, import_express.Router)();
+var dnsResolve4 = promisify(dns.resolve4);
 var hasLlmKey = !!(process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY);
 var openai = new OpenAI(
   process.env.OPENROUTER_API_KEY ? { baseURL: "https://openrouter.ai/api/v1", apiKey: process.env.OPENROUTER_API_KEY } : { apiKey: process.env.OPENAI_API_KEY || void 0 }
@@ -44755,16 +44760,50 @@ async function searchWeb(query) {
     return [];
   }
 }
+function isPrivateIp(ip) {
+  const parts = ip.split(".").map(Number);
+  if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255)) return true;
+  const [a, b] = parts;
+  if (a === 10) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 127) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true;
+  return false;
+}
+async function isSafeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    const hostname = parsed.hostname.toLowerCase();
+    if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname === "127.0.0.1") return false;
+    if (hostname === "metadata.google.internal" || hostname.endsWith(".metadata.google.internal")) return false;
+    const ips = await dnsResolve4(hostname);
+    if (!ips.length) return false;
+    return !ips.some(isPrivateIp);
+  } catch {
+    return false;
+  }
+}
+async function extractUrls(text) {
+  const urlRegex = /https?:\/\/[^\s\)\]\>"]+/gi;
+  const urls = [...new Set(text.match(urlRegex) || [])];
+  const safe = await Promise.all(urls.map(async (url) => ({ url, safe: await isSafeUrl(url) })));
+  return safe.filter((x) => x.safe).map((x) => x.url);
+}
 async function fetchUrl(url) {
+  if (!await isSafeUrl(url)) return null;
   try {
     const res = await fetch(url, {
+      redirect: "manual",
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
       }
     });
-    if (!res.ok) return null;
+    if (!res.ok || res.status >= 300) return null;
     const html = await res.text();
     const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").trim() : url;
@@ -44774,28 +44813,6 @@ async function fetchUrl(url) {
     console.error("[iSkills2] fetch URL failed:", err.message);
     return null;
   }
-}
-function isSafeUrl(url) {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
-    const hostname = parsed.hostname.toLowerCase();
-    if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname === "127.0.0.1") return false;
-    if (hostname.startsWith("169.254.") || hostname.startsWith("10.") || hostname.startsWith("192.168.")) return false;
-    if (hostname.startsWith("172.")) {
-      const second = Number(hostname.split(".")[1]);
-      if (second >= 16 && second <= 31) return false;
-    }
-    if (hostname === "metadata.google.internal" || hostname.endsWith(".metadata.google.internal")) return false;
-    if (hostname.includes("::") || hostname.startsWith("fc") || hostname.startsWith("fd")) return false;
-    return true;
-  } catch {
-    return false;
-  }
-}
-function extractUrls(text) {
-  const urlRegex = /https?:\/\/[^\s\)\]\>"]+/gi;
-  return [...new Set(text.match(urlRegex) || [])].filter(isSafeUrl);
 }
 function needsWebSearch(message) {
   const m = (message || "").toLowerCase();
@@ -44893,7 +44910,7 @@ async function runTool(tool, message) {
       return { type: "isearch", status: "ok", output: { needsSearch, searchQuery, searchResults } };
     }
     case "web_fetch": {
-      const urls = extractUrls(message);
+      const urls = await extractUrls(message);
       if (!urls.length) {
         return { type: "web_fetch", status: "skipped", output: { urls: [], results: [] } };
       }
@@ -44966,7 +44983,7 @@ router.post("/auth/login", async (req, res) => {
   }
 });
 router.get("/auth/me", async (req, res) => {
-  res.json({ id: SHARED_USER_ID, email: "shared@iskills2.local" });
+  res.json({ id: SHARED_USER_ID, email: "shared@iskills2.local", createdAt: "2024-01-01T00:00:00Z" });
 });
 router.get("/skills", async (req, res) => {
   try {

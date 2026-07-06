@@ -95,8 +95,6 @@ paths:
       operationId: getMe
       tags: [iskills2-auth]
       summary: Get current user
-      security:
-        - bearerAuth: []
       responses:
         "200":
           description: Current user
@@ -118,8 +116,6 @@ paths:
       operationId: listSkills
       tags: [iskills2-skills]
       summary: List all skills for the current user
-      security:
-        - bearerAuth: []
       responses:
         "200":
           description: Skills list
@@ -140,8 +136,6 @@ paths:
       operationId: createSkill
       tags: [iskills2-skills]
       summary: Create a skill
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -173,8 +167,6 @@ paths:
       operationId: matchSkill
       tags: [iskills2-skills]
       summary: Find the best matching skill for a user message
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -200,8 +192,6 @@ paths:
       operationId: generateSkill
       tags: [iskills2-skills]
       summary: AI-generate skill fields from a natural language description
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -233,8 +223,6 @@ paths:
       operationId: getSkill
       tags: [iskills2-skills]
       summary: Get a single skill
-      security:
-        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -259,8 +247,6 @@ paths:
       operationId: updateSkill
       tags: [iskills2-skills]
       summary: Update a skill
-      security:
-        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -291,8 +277,6 @@ paths:
       operationId: deleteSkill
       tags: [iskills2-skills]
       summary: Delete a skill
-      security:
-        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -318,8 +302,6 @@ paths:
       operationId: testSkill
       tags: [iskills2-skills]
       summary: Test a skill against a sample message and get a preview response
-      security:
-        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -351,8 +333,6 @@ paths:
       operationId: recordSkillUse
       tags: [iskills2-skills]
       summary: Record a skill usage event for analytics
-      security:
-        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -380,8 +360,6 @@ paths:
       operationId: getStats
       tags: [iskills2-stats]
       summary: Get dashboard stats — total skills, active count, top skills by usage
-      security:
-        - bearerAuth: []
       responses:
         "200":
           description: Stats
