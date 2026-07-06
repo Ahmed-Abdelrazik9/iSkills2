@@ -2,6 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { pool } from "./db";
 import { signToken, requireAuth, type AuthRequest } from "./auth";
+import { SHARED_USER_ID } from "./db";
 
 const router = Router();
 
@@ -97,7 +98,7 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res) => {
   try {
     const { rows } = await pool.query(
       "SELECT * FROM iskills2_users WHERE id = $1",
-      [req.userId],
+      [SHARED_USER_ID],
     );
     if (!rows[0]) { res.status(401).json({ error: "User not found" }); return; }
     const u = rows[0];
@@ -109,11 +110,11 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res) => {
 
 // ── Skills ────────────────────────────────────────────────────────────────────
 
-router.get("/skills", requireAuth, async (req: AuthRequest, res) => {
+router.get("/skills", async (req, res) => {
   try {
     const { rows } = await pool.query(
       "SELECT * FROM iskills2_skills WHERE user_id=$1 ORDER BY priority DESC, created_at DESC",
-      [req.userId],
+      [SHARED_USER_ID],
     );
     res.json(rows.map(rowToSkill));
   } catch (err: any) {
@@ -121,7 +122,7 @@ router.get("/skills", requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
-router.post("/skills", requireAuth, async (req: AuthRequest, res) => {
+router.post("/skills", async (req, res) => {
   const { name, description, instructions, tool, enabled, priority, triggerExamples } = req.body ?? {};
   if (!name?.trim()) { res.status(400).json({ error: "name is required" }); return; }
   if (!description?.trim()) { res.status(400).json({ error: "description is required" }); return; }
@@ -133,7 +134,7 @@ router.post("/skills", requireAuth, async (req: AuthRequest, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
        RETURNING *`,
       [
-        req.userId,
+        SHARED_USER_ID,
         name.trim(),
         description.trim(),
         instructions.trim(),
@@ -150,13 +151,13 @@ router.post("/skills", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // Match endpoint BEFORE /:id so it isn't swallowed as an id param
-router.post("/skills/match", requireAuth, async (req: AuthRequest, res) => {
+router.post("/skills/match", async (req, res) => {
   const { message } = req.body ?? {};
   if (!message) { res.status(400).json({ error: "message required" }); return; }
   try {
     const { rows } = await pool.query(
       "SELECT * FROM iskills2_skills WHERE user_id=$1 AND enabled=true",
-      [req.userId],
+      [SHARED_USER_ID],
     );
     if (!rows.length) {
       res.json({ matched: false, confidence: 0, skill: null, reason: "No enabled skills" });
@@ -183,7 +184,7 @@ router.post("/skills/match", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // Generate skill from natural language
-router.post("/skills/generate", requireAuth, async (req: AuthRequest, res) => {
+router.post("/skills/generate", async (req, res) => {
   const { prompt } = req.body ?? {};
   if (!prompt?.trim()) { res.status(400).json({ error: "prompt required" }); return; }
   const p = prompt.trim().toLowerCase();
@@ -222,11 +223,11 @@ router.post("/skills/generate", requireAuth, async (req: AuthRequest, res) => {
   });
 });
 
-router.get("/skills/:id", requireAuth, async (req: AuthRequest, res) => {
+router.get("/skills/:id", async (req, res) => {
   try {
     const { rows } = await pool.query(
       "SELECT * FROM iskills2_skills WHERE id=$1 AND user_id=$2",
-      [req.params.id, req.userId],
+      [req.params.id, SHARED_USER_ID],
     );
     if (!rows[0]) { res.status(404).json({ error: "Skill not found" }); return; }
     res.json(rowToSkill(rows[0]));
@@ -235,7 +236,7 @@ router.get("/skills/:id", requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
-router.patch("/skills/:id", requireAuth, async (req: AuthRequest, res) => {
+router.patch("/skills/:id", async (req, res) => {
   const updates: Record<string, any> = {};
   const allowed = ["name","description","instructions","tool","enabled","priority","triggerExamples"] as const;
   for (const key of allowed) {
@@ -256,7 +257,7 @@ router.patch("/skills/:id", requireAuth, async (req: AuthRequest, res) => {
     vals.push(v);
   }
   setClauses.push(`updated_at = NOW()`);
-  vals.push(req.params.id, req.userId);
+  vals.push(req.params.id, SHARED_USER_ID);
 
   try {
     const { rows } = await pool.query(
@@ -270,11 +271,11 @@ router.patch("/skills/:id", requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
-router.delete("/skills/:id", requireAuth, async (req: AuthRequest, res) => {
+router.delete("/skills/:id", async (req, res) => {
   try {
     const { rowCount } = await pool.query(
       "DELETE FROM iskills2_skills WHERE id=$1 AND user_id=$2",
-      [req.params.id, req.userId],
+      [req.params.id, SHARED_USER_ID],
     );
     if (!rowCount) { res.status(404).json({ error: "Skill not found" }); return; }
     res.json({ success: true });
@@ -284,13 +285,13 @@ router.delete("/skills/:id", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // Test skill against a sample message
-router.post("/skills/:id/test", requireAuth, async (req: AuthRequest, res) => {
+router.post("/skills/:id/test", async (req, res) => {
   const { message } = req.body ?? {};
   if (!message) { res.status(400).json({ error: "message required" }); return; }
   try {
     const { rows } = await pool.query(
       "SELECT * FROM iskills2_skills WHERE id=$1 AND user_id=$2",
-      [req.params.id, req.userId],
+      [req.params.id, SHARED_USER_ID],
     );
     if (!rows[0]) { res.status(404).json({ error: "Skill not found" }); return; }
     const skill = rows[0];
@@ -314,11 +315,11 @@ router.post("/skills/:id/test", requireAuth, async (req: AuthRequest, res) => {
 });
 
 // Record a use
-router.post("/skills/:id/use", requireAuth, async (req: AuthRequest, res) => {
+router.post("/skills/:id/use", async (req, res) => {
   try {
     const { rowCount } = await pool.query(
       "UPDATE iskills2_skills SET usage_count = usage_count + 1, last_used_at = NOW() WHERE id=$1 AND user_id=$2",
-      [req.params.id, req.userId],
+      [req.params.id, SHARED_USER_ID],
     );
     if (!rowCount) { res.status(404).json({ error: "Skill not found" }); return; }
     res.json({ success: true });
@@ -329,16 +330,16 @@ router.post("/skills/:id/use", requireAuth, async (req: AuthRequest, res) => {
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
 
-router.get("/stats", requireAuth, async (req: AuthRequest, res) => {
+router.get("/stats", async (req, res) => {
   try {
     const [totals, top] = await Promise.all([
       pool.query(
         "SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE enabled) AS active, COALESCE(SUM(usage_count),0) AS uses FROM iskills2_skills WHERE user_id=$1",
-        [req.userId],
+        [SHARED_USER_ID],
       ),
       pool.query(
         "SELECT id, name, usage_count, last_used_at FROM iskills2_skills WHERE user_id=$1 ORDER BY usage_count DESC LIMIT 5",
-        [req.userId],
+        [SHARED_USER_ID],
       ),
     ]);
     const row = totals.rows[0];

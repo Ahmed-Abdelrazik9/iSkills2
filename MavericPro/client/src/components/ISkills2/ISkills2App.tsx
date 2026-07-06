@@ -21,7 +21,6 @@ import {
   Trash2,
   CheckCircle2,
   XCircle,
-  LogOut,
   PenTool,
   Wand2,
 } from 'lucide-react';
@@ -29,26 +28,13 @@ import { cn } from '~/utils';
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
-const TOKEN_KEY = 'iskills2_token';
 const API_BASE = '/api/iskills2';
 
-function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
-}
-function setStoredToken(t: string) {
-  localStorage.setItem(TOKEN_KEY, t);
-}
-function clearToken() {
-  localStorage.removeItem(TOKEN_KEY);
-}
-
 async function apiFetch<T = any>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
   };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
@@ -88,7 +74,7 @@ interface SkillFormData {
   triggerExamples: string[];
 }
 
-type View = 'login' | 'register' | 'dashboard' | 'new-skill' | { type: 'edit-skill'; id: string };
+type View = 'dashboard' | 'new-skill' | { type: 'edit-skill'; id: string };
 
 // ─── Primitive UI (no external deps) ─────────────────────────────────────────
 
@@ -220,194 +206,15 @@ function InlineToast({
   );
 }
 
-// ─── Login ────────────────────────────────────────────────────────────────────
-
-function LoginView({
-  onSuccess,
-  onRegister,
-}: {
-  onSuccess: (email: string) => void;
-  onRegister: () => void;
-}) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const res = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      });
-      setStoredToken(res.token);
-      onSuccess(res.user.email);
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
-      <div className="w-full max-w-md">
-        <div className="flex flex-col items-center mb-8">
-          <div className="h-12 w-12 rounded-full bg-[#C4A882] flex items-center justify-center mb-4">
-            <PenTool className="h-6 w-6 text-white" />
-          </div>
-          <h2 className="text-3xl font-serif mb-1 text-slate-800">Welcome back</h2>
-          <p className="text-slate-500 text-sm text-center">Continue to your skills workspace.</p>
-        </div>
-        <div className="bg-white border border-[#DDD8CF] rounded-3xl p-8 shadow-sm">
-          {error && (
-            <p className="text-red-500 text-sm mb-4 bg-red-50 px-4 py-2.5 rounded-xl">{error}</p>
-          )}
-          <form onSubmit={submit} className="space-y-5">
-            <div>
-              <FieldLabel>Email</FieldLabel>
-              <FInput
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <FieldLabel>Password</FieldLabel>
-              <FInput
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Btn variant="primary" size="lg" className="w-full" type="submit" disabled={loading}>
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Sign In
-            </Btn>
-          </form>
-          <p className="mt-5 text-center text-sm text-slate-500">
-            No account?{' '}
-            <button
-              onClick={onRegister}
-              className="text-[#C4A882] hover:underline font-semibold"
-            >
-              Create one
-            </button>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Register ─────────────────────────────────────────────────────────────────
-
-function RegisterView({
-  onSuccess,
-  onLogin,
-}: {
-  onSuccess: (email: string) => void;
-  onLogin: () => void;
-}) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await apiFetch('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      });
-      setStoredToken(res.token);
-      onSuccess(res.user.email);
-    } catch (err: any) {
-      setError(err.message || 'Registration failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
-      <div className="w-full max-w-md">
-        <div className="flex flex-col items-center mb-8">
-          <div className="h-12 w-12 rounded-full bg-[#C4A882] flex items-center justify-center mb-4">
-            <PenTool className="h-6 w-6 text-white" />
-          </div>
-          <h2 className="text-3xl font-serif mb-1 text-slate-800">Create account</h2>
-          <p className="text-slate-500 text-sm">Start managing your skills.</p>
-        </div>
-        <div className="bg-white border border-[#DDD8CF] rounded-3xl p-8 shadow-sm">
-          {error && (
-            <p className="text-red-500 text-sm mb-4 bg-red-50 px-4 py-2.5 rounded-xl">{error}</p>
-          )}
-          <form onSubmit={submit} className="space-y-5">
-            <div>
-              <FieldLabel>Email</FieldLabel>
-              <FInput
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <FieldLabel>Password</FieldLabel>
-              <FInput
-                type="password"
-                placeholder="Min 6 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Btn variant="primary" size="lg" className="w-full" type="submit" disabled={loading}>
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Create Account
-            </Btn>
-          </form>
-          <p className="mt-5 text-center text-sm text-slate-500">
-            Already have an account?{' '}
-            <button onClick={onLogin} className="text-[#C4A882] hover:underline font-semibold">
-              Sign in
-            </button>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function DashboardView({
-  userEmail,
   onNewSkill,
   onEditSkill,
-  onLogout,
   showToast,
 }: {
-  userEmail: string;
   onNewSkill: () => void;
   onEditSkill: (id: string) => void;
-  onLogout: () => void;
   showToast: (msg: string, type: 'success' | 'error') => void;
 }) {
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -458,18 +265,7 @@ function DashboardView({
             Skills Library
           </span>
         </nav>
-        <div className="mt-auto">
-          <div className="p-3 rounded-xl border border-[#DDD8CF] bg-[#F5F1EB] mb-3">
-            <p className="text-sm font-medium truncate text-slate-700">{userEmail}</p>
-          </div>
-          <button
-            onClick={onLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-500 hover:bg-slate-100 text-sm transition-colors"
-          >
-            <LogOut className="h-4 w-4" />
-            Log out
-          </button>
-        </div>
+        <div className="mt-auto" />
       </aside>
 
       {/* Main content */}
@@ -1029,33 +825,13 @@ export default function ISkills2App() {
   const bottomOffset = (portalOffsets as any).iSkills2 ?? 0;
 
   const [isMaximized, setIsMaximized] = useState(false);
-  const [view, setView] = useState<View>('login');
-  const [userEmail, setUserEmail] = useState('');
+  const [view, setView] = useState<View>('dashboard');
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const showToast = useCallback(
     (msg: string, type: 'success' | 'error') => setToast({ msg, type }),
     [],
   );
-
-  // Restore session when portal is opened
-  useEffect(() => {
-    if (!isOpen) return;
-    const token = getToken();
-    if (!token) {
-      setView('login');
-      return;
-    }
-    apiFetch('/auth/me')
-      .then((u) => {
-        setUserEmail(u.email);
-        setView('dashboard');
-      })
-      .catch(() => {
-        clearToken();
-        setView('login');
-      });
-  }, [isOpen]);
 
   const toggleMaximize = () => {
     if (!document.fullscreenElement) {
@@ -1081,39 +857,11 @@ export default function ISkills2App() {
   if (!isOpen) return null;
 
   const renderContent = () => {
-    if (view === 'login') {
-      return (
-        <LoginView
-          onSuccess={(email) => {
-            setUserEmail(email);
-            setView('dashboard');
-          }}
-          onRegister={() => setView('register')}
-        />
-      );
-    }
-    if (view === 'register') {
-      return (
-        <RegisterView
-          onSuccess={(email) => {
-            setUserEmail(email);
-            setView('dashboard');
-          }}
-          onLogin={() => setView('login')}
-        />
-      );
-    }
     if (view === 'dashboard') {
       return (
         <DashboardView
-          userEmail={userEmail}
           onNewSkill={() => setView('new-skill')}
           onEditSkill={(id) => setView({ type: 'edit-skill', id })}
-          onLogout={() => {
-            clearToken();
-            setUserEmail('');
-            setView('login');
-          }}
           showToast={showToast}
         />
       );

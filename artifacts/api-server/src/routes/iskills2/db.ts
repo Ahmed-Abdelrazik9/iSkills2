@@ -15,6 +15,8 @@ const sslConfig = connectionString.includes("railway") || connectionString.inclu
   : true;
 export const pool = new Pool({ connectionString, ssl: sslConfig });
 
+export const SHARED_USER_ID = "iskills2-shared";
+
 export async function initialize() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS iskills2_users (
@@ -40,6 +42,14 @@ export async function initialize() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
+
+  // Ensure a shared user exists so that the app can work without login.
+  await pool.query(
+    `INSERT INTO iskills2_users (id, email, password_hash) VALUES ($1, $2, $3)
+     ON CONFLICT (id) DO NOTHING`,
+    [SHARED_USER_ID, "shared@iskills2.local", "disabled"],
+  );
+
   console.log("[iSkills2] Tables initialized");
 }
 

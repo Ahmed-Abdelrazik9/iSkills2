@@ -1,36 +1,8 @@
 import * as React from "react"
-import { Link, useLocation } from "wouter"
-import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react"
-import { removeToken } from "@/lib/auth"
-import { useQueryClient } from "@tanstack/react-query"
-import { Button } from "./ui/button"
-import { PenTool, Library, Settings, LogOut, Loader2 } from "lucide-react"
+import { Link } from "wouter"
+import { PenTool, Library } from "lucide-react"
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { data: user, isLoading, isError } = useGetMe({ query: { retry: false, queryKey: getGetMeQueryKey() } })
-  const [, setLocation] = useLocation()
-  const queryClient = useQueryClient()
-
-  React.useEffect(() => {
-    if (!isLoading && (isError || !user)) {
-      setLocation("/login")
-    }
-  }, [isLoading, isError, user, setLocation])
-
-  if (isLoading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
-  }
-
-  const handleLogout = () => {
-    removeToken()
-    queryClient.clear()
-    setLocation("/login")
-  }
-
   return (
     <div className="min-h-[100dvh] flex flex-col md:flex-row bg-background">
       {/* Sidebar */}
@@ -50,16 +22,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </Link>
         </nav>
 
-        <div className="mt-auto">
-          <div className="p-4 rounded-xl border border-border bg-background/50 mb-4">
-            <p className="text-sm font-medium truncate">{user.email}</p>
-            <p className="text-xs text-muted-foreground">Pro Member</p>
-          </div>
-          <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Log out
-          </Button>
-        </div>
+        <div className="mt-auto" />
       </aside>
 
       {/* Main content */}
