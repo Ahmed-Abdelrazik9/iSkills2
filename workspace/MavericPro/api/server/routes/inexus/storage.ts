@@ -221,6 +221,12 @@ export class DatabaseStorage implements IStorage {
         ALTER TABLE inexus_personas ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT TRUE;
         ALTER TABLE inexus_personas ADD COLUMN IF NOT EXISTS tone TEXT DEFAULT 'Neutral';
         ALTER TABLE inexus_personas ADD COLUMN IF NOT EXISTS provider TEXT DEFAULT 'openrouter';
+
+        ALTER TABLE inexus_skills ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT '';
+        ALTER TABLE inexus_skills ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT '';
+        ALTER TABLE inexus_skills ADD COLUMN IF NOT EXISTS instructions TEXT NOT NULL DEFAULT '';
+        ALTER TABLE inexus_skills ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;
+        ALTER TABLE inexus_skills ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL;
       `);
 
       console.log('[iNexus Storage] Tables initialized successfully');
