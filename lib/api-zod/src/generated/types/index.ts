@@ -27,6 +27,7 @@ export * from './skillUpdateMatchMode';
 export * from './stats';
 export * from './testInput';
 export * from './testResult';
+export * from './testResultMatchMode';
 export * from './toolResult';
 export * from './toolResultOutput';
 export * from './user';

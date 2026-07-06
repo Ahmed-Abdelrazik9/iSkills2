@@ -664,28 +664,21 @@ components:
 
     TestResult:
       type: object
-      required: [matched, confidence]
+      required: [wouldTrigger, triggerScore, matchMode]
       properties:
-        matched:
+        wouldTrigger:
           type: boolean
-        confidence:
+        triggerScore:
           type: number
-        skill:
-          $ref: "#/components/schemas/Skill"
+        matchMode:
+          type: string
+          enum: [keyword, llm]
         reason:
           type: string
-        needsSearch:
-          type: boolean
-        searchQuery:
+        injectedPrompt:
           type: string
-        searchResults:
-          type: array
-          items:
-            $ref: "#/components/schemas/SearchResult"
-        toolResults:
-          type: array
-          items:
-            $ref: "#/components/schemas/ToolResult"
+        sampleResponse:
+          type: string
 
     Stats:
       type: object

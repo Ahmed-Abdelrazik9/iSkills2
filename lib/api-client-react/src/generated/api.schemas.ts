@@ -163,15 +163,21 @@ export interface TestInput {
   message: string;
 }
 
+export type TestResultMatchMode = typeof TestResultMatchMode[keyof typeof TestResultMatchMode];
+
+
+export const TestResultMatchMode = {
+  keyword: 'keyword',
+  llm: 'llm',
+} as const;
+
 export interface TestResult {
-  matched: boolean;
-  confidence: number;
-  skill?: Skill;
+  wouldTrigger: boolean;
+  triggerScore: number;
+  matchMode: TestResultMatchMode;
   reason?: string;
-  needsSearch?: boolean;
-  searchQuery?: string;
-  searchResults?: SearchResult[];
-  toolResults?: ToolResult[];
+  injectedPrompt?: string;
+  sampleResponse?: string;
 }
 
 export interface SkillStat {

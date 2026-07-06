@@ -293,41 +293,12 @@ export const TestSkillBody = zod.object({
 })
 
 export const TestSkillResponse = zod.object({
-  "matched": zod.boolean(),
-  "confidence": zod.number(),
-  "skill": zod.object({
-  "id": zod.string(),
-  "userId": zod.string(),
-  "name": zod.string(),
-  "description": zod.string(),
-  "instructions": zod.string(),
-  "tool": zod.string().nullable(),
-  "enabled": zod.boolean(),
-  "isearch": zod.boolean(),
-  "tools": zod.array(zod.string()),
+  "wouldTrigger": zod.boolean(),
+  "triggerScore": zod.number(),
   "matchMode": zod.enum(['keyword', 'llm']),
-  "priority": zod.number(),
-  "triggerExamples": zod.array(zod.string()),
-  "usageCount": zod.number(),
-  "lastUsedAt": zod.coerce.date().nullish(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-}).optional(),
   "reason": zod.string().optional(),
-  "needsSearch": zod.boolean().optional(),
-  "searchQuery": zod.string().optional(),
-  "searchResults": zod.array(zod.object({
-  "title": zod.string(),
-  "url": zod.string(),
-  "snippet": zod.string()
-})).optional(),
-  "toolResults": zod.array(zod.object({
-  "type": zod.string(),
-  "status": zod.string(),
-  "output": zod.object({
-
-}).passthrough()
-})).optional()
+  "injectedPrompt": zod.string().optional(),
+  "sampleResponse": zod.string().optional()
 })
 
 

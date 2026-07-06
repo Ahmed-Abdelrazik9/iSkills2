@@ -44775,9 +44775,27 @@ async function fetchUrl(url) {
     return null;
   }
 }
+function isSafeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    const hostname = parsed.hostname.toLowerCase();
+    if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname === "127.0.0.1") return false;
+    if (hostname.startsWith("169.254.") || hostname.startsWith("10.") || hostname.startsWith("192.168.")) return false;
+    if (hostname.startsWith("172.")) {
+      const second = Number(hostname.split(".")[1]);
+      if (second >= 16 && second <= 31) return false;
+    }
+    if (hostname === "metadata.google.internal" || hostname.endsWith(".metadata.google.internal")) return false;
+    if (hostname.includes("::") || hostname.startsWith("fc") || hostname.startsWith("fd")) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
 function extractUrls(text) {
   const urlRegex = /https?:\/\/[^\s\)\]\>"]+/gi;
-  return [...new Set(text.match(urlRegex) || [])];
+  return [...new Set(text.match(urlRegex) || [])].filter(isSafeUrl);
 }
 function needsWebSearch(message) {
   const m = (message || "").toLowerCase();
@@ -44998,11 +45016,11 @@ router.post("/skills/match", async (req, res) => {
       return;
     }
     let best = null;
-    const anyLlm = rows.some((r) => (r.match_mode || "keyword") === "llm");
-    if (anyLlm && hasLlmKey) {
-      const llm = await llmMatch(message, rows);
+    const llmRows = rows.filter((r) => (r.match_mode || "keyword") === "llm");
+    if (llmRows.length && hasLlmKey) {
+      const llm = await llmMatch(message, llmRows);
       if (llm && llm.skillId) {
-        const matched = rows.find((r) => r.id === llm.skillId);
+        const matched = llmRows.find((r) => r.id === llm.skillId);
         if (matched) {
           best = { skill: matched, confidence: llm.confidence, reason: llm.reason };
         }

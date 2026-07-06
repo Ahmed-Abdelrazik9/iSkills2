@@ -5,17 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { SearchResult } from './searchResult';
-import type { Skill } from './skill';
-import type { ToolResult } from './toolResult';
+import type { TestResultMatchMode } from './testResultMatchMode';
 
 export interface TestResult {
-  matched: boolean;
-  confidence: number;
-  skill?: Skill;
+  wouldTrigger: boolean;
+  triggerScore: number;
+  matchMode: TestResultMatchMode;
   reason?: string;
-  needsSearch?: boolean;
-  searchQuery?: string;
-  searchResults?: SearchResult[];
-  toolResults?: ToolResult[];
+  injectedPrompt?: string;
+  sampleResponse?: string;
 }

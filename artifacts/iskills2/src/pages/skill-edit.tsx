@@ -6,6 +6,7 @@ import {
   useGetSkill, 
   useUpdateSkill, 
   useDeleteSkill,
+  useTestSkill,
   getGetSkillQueryKey,
   getListSkillsQueryKey 
 } from "@workspace/api-client-react"
@@ -100,6 +101,7 @@ export default function SkillEdit() {
 
   const updateSkill = useUpdateSkill()
   const deleteSkill = useDeleteSkill()
+  const testSkill = useTestSkill()
   const [isTesting, setIsTesting] = useState(false)
 
   const onSubmit = (data: z.infer<typeof skillSchema>) => {
@@ -138,19 +140,19 @@ export default function SkillEdit() {
     if (!testMessage.trim()) return
     setIsTesting(true)
     setTestResult(null)
-    try {
-      const res = await fetch('/api/iskills2/skills/match', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: testMessage })
-      })
-      if (!res.ok) throw new Error(await res.text())
-      setTestResult(await res.json())
-    } catch (err: any) {
-      toast({ title: "Test failed", description: err.message || "Could not run test", variant: "destructive" })
-    } finally {
-      setIsTesting(false)
-    }
+    testSkill.mutate(
+      { id, data: { message: testMessage } },
+      {
+        onSuccess: (res) => {
+          setTestResult(res)
+          setIsTesting(false)
+        },
+        onError: (err: any) => {
+          toast({ title: "Test failed", description: err?.response?.data?.error || err.message || "Could not run test", variant: "destructive" })
+          setIsTesting(false)
+        }
+      }
+    )
   }
 
   if (isLoading) {
@@ -484,50 +486,25 @@ export default function SkillEdit() {
                   <p className="text-xs text-muted-foreground">
                     Match mode: <span className="font-mono uppercase">{testResult.matchMode || "keyword"}</span>
                   </p>
+                  {testResult.reason && (
+                    <p className="text-xs text-muted-foreground">{testResult.reason}</p>
+                  )}
                 </div>
               </div>
 
-              {testResult.wouldTrigger && testResult.skill && (
-                <>
-                  <div>
-                    <label className="text-xs uppercase tracking-widest font-black text-accent block mb-2">Matched Skill</label>
-                    <p className="text-sm font-medium text-slate-800">{testResult.skill.name}</p>
-                    <p className="text-xs text-muted-foreground">{testResult.reason}</p>
-                  </div>
-                  {testResult.needsSearch && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-                      <p className="text-sm font-medium text-blue-800">iSearch triggered</p>
-                      <p className="text-xs text-blue-600 font-mono mt-1">{testResult.searchQuery}</p>
-                    </div>
-                  )}
-                  {testResult.searchResults && testResult.searchResults.length > 0 && (
-                    <div>
-                      <label className="text-xs uppercase tracking-widest font-black text-accent block mb-2">Live Search Results</label>
-                      <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {testResult.searchResults.map((result, idx) => (
-                          <a
-                            key={idx}
-                            href={result.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block bg-muted p-3 rounded-xl border border-border hover:border-accent transition-colors"
-                          >
-                            <p className="text-sm font-medium text-slate-800">{result.title}</p>
-                            <p className="text-xs text-blue-600 truncate">{result.url}</p>
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{result.snippet}</p>
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div>
-                    <label className="text-xs uppercase tracking-widest font-black text-accent block mb-2">Instructions</label>
-                    <div className="bg-muted p-4 rounded-xl text-sm font-mono whitespace-pre-wrap text-muted-foreground max-h-64 overflow-y-auto border border-border">
-                      {testResult.skill.instructions}
-                    </div>
-                  </div>
-                </>
-              )}
+              <div>
+                <label className="text-xs uppercase tracking-widest font-black text-accent block mb-2">Injected Prompt</label>
+                <div className="bg-muted p-4 rounded-xl text-sm font-mono whitespace-pre-wrap text-muted-foreground max-h-64 overflow-y-auto border border-border">
+                  {testResult.injectedPrompt}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs uppercase tracking-widest font-black text-accent block mb-2">Sample Response</label>
+                <div className="bg-muted p-4 rounded-xl text-sm whitespace-pre-wrap text-muted-foreground max-h-64 overflow-y-auto border border-border">
+                  {testResult.sampleResponse}
+                </div>
+              </div>
             </div>
           )}
         </div>
