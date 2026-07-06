@@ -1,2 +1,3 @@
 - [iSkills2 app](iskills2-app.md) — standalone skill manager built on Railway Postgres via ISKILLS2_DATABASE_URL; JWT secret via ISKILLS2_JWT_SECRET; routes mounted at /api/iskills2 in api-server.
 - [MavericPro iSkill bugs](mavericpro-iskill.md) — production bug history: label NOT NULL + missing CRUD routes in index.js; all fixed and pushed to main.
+- [iSkills2 inside MavericPro](iskills2-mavericpro-integration.md) — iSkills2 served from the MavericPro backend via a pre-built ESM router + static files; MavericPro GitHub repo has the app at root, not under workspace/MavericPro.
