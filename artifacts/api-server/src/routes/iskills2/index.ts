@@ -94,13 +94,13 @@ router.post("/auth/login", async (req, res) => {
   }
 });
 
-router.get("/auth/me", requireAuth, async (req: AuthRequest, res) => {
+router.get("/auth/me", async (req, res) => {
   try {
     const { rows } = await pool.query(
       "SELECT * FROM iskills2_users WHERE id = $1",
       [SHARED_USER_ID],
     );
-    if (!rows[0]) { res.status(401).json({ error: "User not found" }); return; }
+    if (!rows[0]) { res.status(404).json({ error: "User not found" }); return; }
     const u = rows[0];
     res.json({ id: u.id, email: u.email, createdAt: u.created_at });
   } catch (err: any) {
