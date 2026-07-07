@@ -389,6 +389,17 @@ function parseSkillMd(content: string): { name: string; description: string; ins
   return { name, description, instructions: body };
 }
 
+function detectIsearchNeed(text: string): boolean {
+  const searchTerms = [
+    "web search", "search the web", "search online", "look up online", "search internet",
+    "current information", "latest information", "up-to-date", "recent data", "latest news",
+    "live data", "real-time", "fetch from web", "browse the web", "internet search",
+    "online search", "find online", "google", "duckduckgo", "web lookup", "web query",
+  ];
+  const lower = text.toLowerCase();
+  return searchTerms.some((t) => lower.includes(t));
+}
+
 router.post("/skills/import", async (req, res) => {
   const { content, isearch } = req.body ?? {};
   if (!content?.trim()) { res.status(400).json({ error: "content required" }); return; }
@@ -396,13 +407,14 @@ router.post("/skills/import", async (req, res) => {
   if (!parsed) { res.status(400).json({ error: "Invalid SKILL.md format. Must have --- YAML frontmatter with name and description." }); return; }
   if (!parsed.instructions) { res.status(400).json({ error: "SKILL.md must have instructions (content after the frontmatter)." }); return; }
   try {
-    const finalTools = isearch ? ["isearch"] : [];
+    const autoIsearch = isearch === undefined ? detectIsearchNeed(parsed.description + " " + parsed.instructions) : !!isearch;
+    const finalTools = autoIsearch ? ["isearch"] : [];
     const { rows } = await pool.query(
       `INSERT INTO iskills2_skills
         (user_id, name, description, instructions, tool, enabled, isearch, tools, match_mode, priority, trigger_examples)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING *`,
-      [SHARED_USER_ID, parsed.name, parsed.description, parsed.instructions, null, true, !!isearch, JSON.stringify(finalTools), "llm", 50, []],
+      [SHARED_USER_ID, parsed.name, parsed.description, parsed.instructions, null, true, autoIsearch, JSON.stringify(finalTools), "llm", 50, []],
     );
     res.status(201).json(rowToSkill(rows[0]));
   } catch (err: any) {

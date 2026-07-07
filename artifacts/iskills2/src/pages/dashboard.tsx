@@ -27,11 +27,26 @@ export default function Dashboard() {
   const [importing, setImporting] = React.useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const detectIsearch = React.useCallback((text: string) => {
+    const searchTerms = [
+      "web search", "search the web", "search online", "look up online", "search internet",
+      "current information", "latest information", "up-to-date", "recent data", "latest news",
+      "live data", "real-time", "fetch from web", "browse the web", "internet search",
+      "online search", "find online", "google", "duckduckgo", "web lookup", "web query",
+    ]
+    const lower = text.toLowerCase()
+    return searchTerms.some((t) => lower.includes(t))
+  }, [])
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (ev) => setImportContent(ev.target?.result as string)
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      setImportContent(text)
+      setImportIsearch(detectIsearch(text))
+    }
     reader.readAsText(file)
   }
 
@@ -202,7 +217,10 @@ export default function Dashboard() {
               placeholder={`---\nname: my-skill-name\ndescription: When the user asks about X, apply this skill\n---\n\n# My Skill\n\nInstructions here...`}
               className="min-h-[220px] font-mono text-xs"
               value={importContent}
-              onChange={e => setImportContent(e.target.value)}
+              onChange={e => {
+                setImportContent(e.target.value)
+                setImportIsearch(detectIsearch(e.target.value))
+              }}
             />
 
             <div className="flex items-center justify-between border border-border rounded-xl px-4 py-3">
