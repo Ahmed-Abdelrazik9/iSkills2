@@ -32,6 +32,7 @@ import type {
   GenerateInput,
   GeneratedSkill,
   HealthStatus,
+  ImportSkillBody,
   MatchInput,
   MatchResult,
   Skill,
@@ -580,6 +581,77 @@ export const useMatchSkill = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getMatchSkillMutationOptions(options));
+    }
+
+export const getImportSkillUrl = () => {
+
+
+
+
+  return `/api/iskills2/skills/import`
+}
+
+/**
+ * Parses a SKILL.md file (YAML frontmatter with name/description + markdown instructions body) and creates a skill. matchMode defaults to llm.
+ * @summary Import a skill from Anthropic SKILL.md format
+ */
+export const importSkill = async (importSkillBody: ImportSkillBody, options?: RequestInit): Promise<Skill> => {
+
+  return customFetch<Skill>(getImportSkillUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(importSkillBody)
+  }
+);}
+
+
+
+
+export const getImportSkillMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importSkill>>, TError,{data: BodyType<ImportSkillBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importSkill>>, TError,{data: BodyType<ImportSkillBody>}, TContext> => {
+
+const mutationKey = ['importSkill'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importSkill>>, {data: BodyType<ImportSkillBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importSkill(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportSkillMutationResult = NonNullable<Awaited<ReturnType<typeof importSkill>>>
+    export type ImportSkillMutationBody = BodyType<ImportSkillBody>
+    export type ImportSkillMutationError = ErrorType<ApiError>
+
+    /**
+ * @summary Import a skill from Anthropic SKILL.md format
+ */
+export const useImportSkill = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importSkill>>, TError,{data: BodyType<ImportSkillBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importSkill>>,
+        TError,
+        {data: BodyType<ImportSkillBody>},
+        TContext
+      > => {
+      return useMutation(getImportSkillMutationOptions(options));
     }
 
 export const getGenerateSkillUrl = () => {

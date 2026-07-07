@@ -45922,6 +45922,47 @@ router.post("/skills/match", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+function parseSkillMd(content) {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!match) return null;
+  const frontmatter = match[1];
+  const body = match[2].trim();
+  const getName2 = frontmatter.match(/^name:\s*(.+)$/m);
+  const getDesc = frontmatter.match(/^description:\s*([\s\S]*?)(?=\n\w|\n---|\s*$)/m);
+  const name = getName2?.[1]?.trim() ?? "";
+  const description = getDesc?.[1]?.trim().replace(/\n\s+/g, " ") ?? "";
+  if (!name || !description) return null;
+  return { name, description, instructions: body };
+}
+router.post("/skills/import", async (req, res) => {
+  const { content, isearch } = req.body ?? {};
+  if (!content?.trim()) {
+    res.status(400).json({ error: "content required" });
+    return;
+  }
+  const parsed = parseSkillMd(content.trim());
+  if (!parsed) {
+    res.status(400).json({ error: "Invalid SKILL.md format. Must have --- YAML frontmatter with name and description." });
+    return;
+  }
+  if (!parsed.instructions) {
+    res.status(400).json({ error: "SKILL.md must have instructions (content after the frontmatter)." });
+    return;
+  }
+  try {
+    const finalTools = isearch ? ["isearch"] : [];
+    const { rows } = await pool.query(
+      `INSERT INTO iskills2_skills
+        (user_id, name, description, instructions, tool, enabled, isearch, tools, match_mode, priority, trigger_examples)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       RETURNING *`,
+      [SHARED_USER_ID, parsed.name, parsed.description, parsed.instructions, null, true, !!isearch, JSON.stringify(finalTools), "llm", 50, []]
+    );
+    res.status(201).json(rowToSkill(rows[0]));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 router.post("/skills/generate", async (req, res) => {
   const { prompt } = req.body ?? {};
   if (!prompt?.trim()) {

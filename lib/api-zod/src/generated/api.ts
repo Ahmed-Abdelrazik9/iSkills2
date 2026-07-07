@@ -188,6 +188,35 @@ export const MatchSkillResponse = zod.object({
 
 
 /**
+ * Parses a SKILL.md file (YAML frontmatter with name/description + markdown instructions body) and creates a skill. matchMode defaults to llm.
+ * @summary Import a skill from Anthropic SKILL.md format
+ */
+export const ImportSkillBody = zod.object({
+  "content": zod.string().describe('Raw SKILL.md file content'),
+  "isearch": zod.boolean().optional().describe('Enable iSearch web search for this skill')
+})
+
+export const ImportSkillResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "instructions": zod.string(),
+  "tool": zod.string().nullable(),
+  "enabled": zod.boolean(),
+  "isearch": zod.boolean(),
+  "tools": zod.array(zod.string()),
+  "matchMode": zod.enum(['keyword', 'llm']),
+  "priority": zod.number(),
+  "triggerExamples": zod.array(zod.string()),
+  "usageCount": zod.number(),
+  "lastUsedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary AI-generate skill fields from a natural language description
  */
 export const GenerateSkillBody = zod.object({

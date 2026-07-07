@@ -1,16 +1,66 @@
-import React from "react"
-import { useListSkills, useGetStats, getListSkillsQueryKey } from "@workspace/api-client-react"
+import React, { useRef } from "react"
+import { useListSkills, useGetStats, useCreateSkill, getListSkillsQueryKey } from "@workspace/api-client-react"
 import { Link, useLocation } from "wouter"
 import { AppLayout } from "@/components/layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Plus, Search, Activity, BookOpen, Clock, Zap } from "lucide-react"
+import { Plus, Search, Activity, BookOpen, Clock, Zap, Upload, Globe } from "lucide-react"
 import { format } from "date-fns"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
+import { useToast } from "@/hooks/use-toast"
+import { useQueryClient } from "@tanstack/react-query"
+
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? ""
 
 export default function Dashboard() {
   const { data: skills, isLoading: skillsLoading } = useListSkills({ query: { queryKey: getListSkillsQueryKey() } })
   const { data: stats, isLoading: statsLoading } = useGetStats()
   const [, setLocation] = useLocation()
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+
+  const [importOpen, setImportOpen] = React.useState(false)
+  const [importContent, setImportContent] = React.useState("")
+  const [importIsearch, setImportIsearch] = React.useState(false)
+  const [importing, setImporting] = React.useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setImportContent(ev.target?.result as string)
+    reader.readAsText(file)
+  }
+
+  const handleImport = async () => {
+    if (!importContent.trim()) {
+      toast({ title: "Paste or upload a SKILL.md file first", variant: "destructive" })
+      return
+    }
+    setImporting(true)
+    try {
+      const res = await fetch(`${BASE}/api/iskills2/skills/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: importContent, isearch: importIsearch }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || "Import failed")
+      queryClient.invalidateQueries({ queryKey: getListSkillsQueryKey() })
+      toast({ title: "Skill imported", description: `"${data.name}" added to your library.` })
+      setImportOpen(false)
+      setImportContent("")
+      setImportIsearch(false)
+      setLocation(`/skills/${data.id}`)
+    } catch (err: any) {
+      toast({ title: "Import failed", description: err?.message || "Invalid SKILL.md", variant: "destructive" })
+    } finally {
+      setImporting(false)
+    }
+  }
 
   return (
     <AppLayout>
@@ -20,10 +70,16 @@ export default function Dashboard() {
             <h1 className="font-serif text-5xl mb-3">Skills Library</h1>
             <p className="text-muted-foreground text-lg">Manage and curate your automated capabilities.</p>
           </div>
-          <Button size="lg" onClick={() => setLocation("/skills/new")} className="shrink-0 shadow-md">
-            <Plus className="h-5 w-5 mr-2" />
-            Create Skill
-          </Button>
+          <div className="flex gap-3 shrink-0">
+            <Button variant="outline" size="lg" onClick={() => setImportOpen(true)}>
+              <Upload className="h-5 w-5 mr-2" />
+              Import SKILL.md
+            </Button>
+            <Button size="lg" onClick={() => setLocation("/skills/new")} className="shadow-md">
+              <Plus className="h-5 w-5 mr-2" />
+              Create Skill
+            </Button>
+          </div>
         </header>
 
         {/* Stats Row */}
@@ -86,7 +142,10 @@ export default function Dashboard() {
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                 Create your first skill to automate knowledge retrieval, formatting, or task execution.
               </p>
-              <Button onClick={() => setLocation("/skills/new")}>Create your first skill</Button>
+              <div className="flex gap-3 justify-center">
+                <Button variant="outline" onClick={() => setImportOpen(true)}>Import SKILL.md</Button>
+                <Button onClick={() => setLocation("/skills/new")}>Create your first skill</Button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -117,6 +176,54 @@ export default function Dashboard() {
           )}
         </section>
       </div>
+
+      {/* Import SKILL.md Dialog */}
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-2xl">Import Anthropic SKILL.md</DialogTitle>
+            <DialogDescription>
+              Paste or upload a SKILL.md file. The <code className="text-xs bg-muted px-1 rounded">name</code> and{" "}
+              <code className="text-xs bg-muted px-1 rounded">description</code> come from the YAML frontmatter; the
+              markdown body becomes the instructions.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="flex items-center gap-3">
+              <input ref={fileRef} type="file" accept=".md,.txt" className="hidden" onChange={handleFileUpload} />
+              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+                <Upload className="h-4 w-4 mr-2" /> Upload file
+              </Button>
+              <span className="text-xs text-muted-foreground">or paste below</span>
+            </div>
+
+            <Textarea
+              placeholder={`---\nname: my-skill-name\ndescription: When the user asks about X, apply this skill\n---\n\n# My Skill\n\nInstructions here...`}
+              className="min-h-[220px] font-mono text-xs"
+              value={importContent}
+              onChange={e => setImportContent(e.target.value)}
+            />
+
+            <div className="flex items-center justify-between border border-border rounded-xl px-4 py-3">
+              <div>
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-amber-500" /> Enable iSearch
+                </p>
+                <p className="text-xs text-muted-foreground">Auto web search when this skill activates</p>
+              </div>
+              <Switch checked={importIsearch} onCheckedChange={setImportIsearch} />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setImportOpen(false)}>Cancel</Button>
+            <Button onClick={handleImport} disabled={importing}>
+              {importing ? "Importing…" : "Import Skill"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   )
 }

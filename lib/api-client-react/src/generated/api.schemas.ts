@@ -200,3 +200,10 @@ export interface Stats {
   topSkills: SkillStat[];
 }
 
+export type ImportSkillBody = {
+  /** Raw SKILL.md file content */
+  content: string;
+  /** Enable iSearch web search for this skill */
+  isearch?: boolean;
+};
+

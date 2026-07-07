@@ -168,6 +168,40 @@ paths:
               schema:
                 $ref: "#/components/schemas/MatchResult"
 
+  /iskills2/skills/import:
+    post:
+      operationId: importSkill
+      tags: [iskills2-skills]
+      summary: Import a skill from Anthropic SKILL.md format
+      description: Parses a SKILL.md file (YAML frontmatter with name/description + markdown instructions body) and creates a skill. matchMode defaults to llm.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  description: Raw SKILL.md file content
+                isearch:
+                  type: boolean
+                  description: Enable iSearch web search for this skill
+      responses:
+        "201":
+          description: Imported skill
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Skill"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
   /iskills2/skills/generate:
     post:
       operationId: generateSkill
